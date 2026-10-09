@@ -7,6 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#1B2A41">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
 <style>
 :root{--bg-color:#f4f7f6;--text-color:#333;--card-bg:#fff;--primary-color:#1B2A41;--secondary-color:#3b5998;--accent-color:#fca311;--danger-color:#e74c3c;--success-color:#27ae60;--warning-color:#f39c12;--border-radius:12px}
 body.dark-mode{--bg-color:#121212;--text-color:#e0e0e0;--card-bg:#1e1e1e;--primary-color:#2c3e50;--secondary-color:#34495e;--accent-color:#e67e22;--danger-color:#c0392b;--success-color:#2ecc71}
@@ -120,9 +123,35 @@ h2{font-size:26px}
 .notif-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:8px}
 .notif-head button{border:0;background:none;font-size:20px;cursor:pointer;color:inherit}
 .notif-item{padding:8px 4px;border-bottom:1px solid #eee;font-size:14px}
+
+:root{--b1:#3b5998;--b2:#fca311;--glass:rgba(255,255,255,.84)}
+body.dark-mode{--glass:rgba(30,30,30,.82)}
+.drawer-label,.material-card{background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+#bg::before,#bg::after{content:"";position:absolute;width:62vmax;height:62vmax;border-radius:50%;filter:blur(60px);opacity:.34;will-change:transform;animation:drift 24s ease-in-out infinite alternate}
+#bg::before{background:radial-gradient(circle,var(--b1),transparent 70%);top:-22vmax;right:-18vmax}
+#bg::after{background:radial-gradient(circle,var(--b2),transparent 70%);bottom:-26vmax;left:-18vmax;animation-delay:-9s}
+body.dark-mode #bg::before,body.dark-mode #bg::after{opacity:.2}
+.bg-dots{position:absolute;inset:0;background-image:radial-gradient(rgba(127,127,127,.2) 1px,transparent 1px);background-size:26px 26px;-webkit-mask-image:linear-gradient(#000,transparent 85%);mask-image:linear-gradient(#000,transparent 85%)}
+.sym{position:absolute;bottom:-50px;font-family:monospace;font-weight:bold;color:var(--b1);opacity:.15;animation:rise linear infinite}
+@keyframes drift{to{transform:translate(9vmax,7vmax) scale(1.18)}}
+@keyframes rise{to{transform:translateY(-118vh) rotate(25deg)}}
+@media(prefers-reduced-motion:reduce){#bg::before,#bg::after,.sym{animation:none!important}}
+.btn.sm{padding:6px 12px;font-size:13px}
+.quick{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}.quick .btn{padding:8px 14px;font-size:14px}
+.note-btn{color:#16a085;background:rgba(22,160,133,.1)}.note-btn.on{background:#16a085;color:#fff}
+.tag{background:rgba(59,89,152,.12);color:var(--secondary-color);padding:2px 8px;border-radius:10px;cursor:pointer;font-weight:600}
+body.dark-mode .tag{color:#fff}
+.modal-content h3{margin-top:0}
+.ev{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(136,136,136,.3);font-size:14px}
+.menu{display:grid;gap:8px}
+.menu-btn{display:flex;align-items:center;gap:12px;width:100%;padding:12px;border:0;border-radius:10px;background:rgba(59,89,152,.1);color:var(--text-color);font-family:'Cairo';font-size:16px;font-weight:600;cursor:pointer;text-align:right}
+.menu-btn span{font-size:22px}
+.sw{display:grid;gap:8px}.swb{border:0;border-radius:10px;color:#fff;padding:14px;font-family:'Cairo';font-size:16px;font-weight:700;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.4)}
 </style>
 </head>
 <body>
+<div id="bg"><div class="bg-dots"></div></div>
 <div id="splashScreen"><h1 style="font-family:'Markazi Text';font-size:48px;margin:0">FCI-Materials</h1><p>جامعة أسيوط</p><div class="spinner"></div></div>
 <div id="globalAnnouncement" class="announcement-bar"></div>
 <div id="toast-container"></div>
@@ -131,6 +160,7 @@ h2{font-size:26px}
   <div class="brand"><span class="brand-mark">FCI</span><div class="brand-text"><h1>FCI-Materials</h1><p>جامعة أسيوط</p></div></div>
   <div class="header-actions">
     <button onclick="openGPAModal()" class="icon-link" title="حاسبة المعدل" aria-label="حاسبة المعدل">🧮</button>
+    <button onclick="openMenu()" class="icon-link" title="المزيد" aria-label="المزيد">☰</button>
     <button id="notifBtn" onclick="toggleNotif()" class="icon-link" title="الإشعارات" aria-label="الإشعارات">🔔<span id="notifDot" class="notification-dot"></span></button>
     <button onclick="refresh(true)" class="icon-link" title="تحديث" aria-label="تحديث">🔄</button>
     <button id="themeToggleBtn" class="icon-link" title="المظهر" aria-label="المظهر">🌙</button>
@@ -139,6 +169,7 @@ h2{font-size:26px}
     <button id="logoutBtn" onclick="logoutAdmin()" class="icon-link" style="display:none" title="خروج" aria-label="خروج">🚪</button>
   </div>
 </div></header>
+<div id="toolModal" class="modal-overlay"><div class="modal-content" id="toolBody"></div></div>
 <div id="notifDropdown" class="notif-dropdown" role="dialog" aria-label="الإشعارات"><div class="notif-head"><b>جديد المنصة</b><button onclick="closeNotif()" aria-label="إغلاق">✕</button></div><div id="notifList">لا جديد.</div></div>
 
 <main class="wrap">
@@ -177,6 +208,7 @@ h2{font-size:26px}
       <input type="search" id="searchBox" class="form-input" placeholder="🔍 ابحث عن مادة أو ملف..." aria-label="بحث">
       <select id="weekFilter" class="form-select" style="max-width:150px" aria-label="الأسبوع"></select>
     </div>
+    <div class="quick"><button class="btn" onclick="openTop()">🔥 الأكثر استخداماً</button><button class="btn" onclick="openRecent()">🕘 آخر ما فتحته</button></div>
     <p style="color:#888;font-size:13px">اضغط ⭐ لتثبيت المادة، و✔ لتحديد إنك خلصت الملف</p>
     <div id="cards" class="card-grid"></div>
   </section>
@@ -215,6 +247,7 @@ h2{font-size:26px}
       <select id="addType" class="form-select"></select>
       <input type="date" id="addDeadline" class="form-input" style="display:none" title="تاريخ التسليم">
       <input type="text" id="addTitle" class="form-input" placeholder="عنوان الملف">
+      <input type="text" id="addTags" class="form-input" placeholder="وسوم: مهم، مراجعة (مفصولة بفاصلة)">
       <input type="url" id="addLink" class="form-input" placeholder="الرابط (https://...)">
     </div>
     <button class="btn" onclick="saveMaterial()" style="width:100%;margin-top:15px">نشر</button>
@@ -371,12 +404,12 @@ $('weekFilter').addEventListener('change',e=>{W=e.target.value;render()});
 
 function render(){
   const saved={};document.querySelectorAll('#cards input').forEach(i=>saved[i.id]=i.value);
-  const p=userPath;
+  const p=userPath,notes=ld('fci_notes',{});
   const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'));
   const soon=all.filter(i=>{if(i.type!=='تكليفات'||!i.deadline||done.includes(i.id))return false;const e=new Date(i.deadline+'T23:59:59'),n=new Date();return e>=n&&e-n<7*864e5});
-  $('upcoming').innerHTML=soon.length?`<div class="upcoming"><strong>⏰ تكليفات قريبة:</strong>${soon.map(i=>`<div>• ${esc(i.subject)} - ${esc(i.title)} ${dlBadge(i.deadline)}</div>`).join('')}</div>`:'';
+  $('upcoming').innerHTML=evBanner()+(soon.length?`<div class="upcoming"><strong>⏰ تكليفات قريبة:</strong>${soon.map(i=>`<div>• ${esc(i.subject)} - ${esc(i.title)} ${dlBadge(i.deadline)}</div>`).join('')}</div>`:'');
   let db=all;
-  if(Q)db=db.filter(i=>(i.title+' '+i.subject).toLowerCase().includes(Q));
+  if(Q)db=db.filter(i=>(i.title+' '+i.subject+' '+(i.tags||'')).toLowerCase().includes(Q));
   if(W)db=db.filter(i=>i.week===W);
   const box=$('cards');
   if(!db.length){box.innerHTML='<p style="text-align:center">لا توجد ملفات حالياً في هذا المسار.</p>';return}
@@ -398,13 +431,14 @@ function render(){
 <div class="action-links">
 <button class="done-btn ${dn2?'on':''}" data-act="done" data-id="${m.id}" aria-label="تم">✔</button>
 <button class="report-btn" data-act="rep" data-id="${m.id}" aria-label="إبلاغ">⚠</button>
+<button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${m.id}" aria-label="ملاحظة">📝</button>
 <button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
 <button class="like-btn ${lk?'liked':''}" data-act="like" data-id="${m.id}">👍 ${m.likes||0}</button>
 <a href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer" class="open-btn" data-act="view" data-id="${m.id}">عرض</a>
 <a href="${esc(getDL(m.viewLink))}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${m.id}">تحميل</a>
 ${isAdmin?`<button class="edit-btn" data-act="edit" data-id="${m.id}" aria-label="تعديل">✏️</button><button class="delete-btn" data-act="del" data-id="${m.id}" aria-label="حذف">🗑️</button>`:''}
 </div></div>
-<div class="item-meta"><span>📅 ${esc(m.week||'عام')}</span><span>🗓 ${esc(m.dateAdded||'')}</span>${m.by?`<span>✍ ${esc(m.by)}</span>`:''}<span>👁 ${m.views||0}</span><span>⬇ ${m.downloads||0}</span>${m.dept==='مشترك'?'<span>🌐 مشترك</span>':''}</div>
+<div class="item-meta"><span>📅 ${esc(m.week||'عام')}</span><span>🗓 ${esc(m.dateAdded||'')}</span>${m.by?`<span>✍ ${esc(m.by)}</span>`:''}<span>👁 ${m.views||0}</span><span>⬇ ${m.downloads||0}</span>${m.dept==='مشترك'?'<span>🌐 مشترك</span>':''}${String(m.tags||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag" data-act="tag" data-s="${esc(t)}">#${esc(t)}</span>`).join('')}</div>
 <div class="comments-section"><div>${cm}</div><div class="comment-input-box"><input type="text" id="cn-${m.id}" class="comment-input" style="max-width:100px;flex:none" placeholder="اسمك" maxlength="20"><input type="text" id="cm-${m.id}" class="comment-input" placeholder="اكتب تعليقك..." maxlength="300"><button class="btn" style="padding:5px 10px;font-size:12px" data-act="cmt" data-id="${m.id}">إرسال</button></div></div></div>`;
       });
     });
@@ -446,7 +480,7 @@ function calculateGPA(){
 
 /* ===== الاتصال بـ Google Sheets ===== */
 const API='https://script.google.com/macros/s/AKfycbyS2hyRuwqBDB5IXxlyCqM2Kzqb-j6jBDpmxlS7T4_ho1Gn1o7xSEttfcqIb1ZuthxrdQ/exec'; // رابط الـ Web App من Apps Script
-let DB=ld('fci_db',[]),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='';
+let DB=ld('fci_db',[]),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='',EVENTS=ld('fci_ev',[]);
 const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
@@ -454,7 +488,7 @@ async function api(a,d={}){
   const j=await r.json();if(j.error)throw new Error(j.error);return j;
 }
 function apply(j){
-  if(!j||!j.items)return;DB=j.items;REPS=j.reports||[];ANN=j.ann||'';sv('fci_db',DB);sv('fci_ann',ANN);
+  if(!j||!j.items)return;DB=j.items;REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);sv('fci_db',DB);sv('fci_ann',ANN);
   renderNotif();loadAnnouncement();if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('adminDashboard').hidden){updateStats();renderReports()}
 }
@@ -475,10 +509,10 @@ async function checkLogin(){
 function logoutAdmin(){isAdmin=false;PASS='';ME='';$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome()}
 async function saveMaterial(){
   const link=safeUrl($('addLink').value.trim());
-  const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value};
+  const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value,tags:$('addTags').value.trim()};
   if(!item.subject||!item.title)return toast('أكمل الحقول!',1);
   if(!link)return toast('الرابط لازم يبدأ بـ https://',1);
-  if(await act('add',{item},'تم النشر!'))['addSubject','addTitle','addLink','addDeadline'].forEach(i=>$(i).value='');
+  if(await act('add',{item},'تم النشر!'))['addSubject','addTitle','addLink','addDeadline','addTags'].forEach(i=>$(i).value='');
 }
 function deleteMat(id){if(confirm('حذف؟'))act('del',{id},'مُسح')}
 function clearAllData(){if(confirm('تصفير كلي؟ (اعمل نسخة احتياطية الأول)'))act('clear',{},'تم')}
@@ -497,10 +531,12 @@ $('reportsList').addEventListener('click',e=>{const b=e.target.closest('[data-ri
 $('cards').addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el)return;
   const a=el.dataset.act,id=el.dataset.id,s=el.dataset.s;
-  if(a==='view'||a==='dl'){api('bump',{id,f:a==='dl'?'downloads':'views'}).catch(()=>{});return}
+  if(a==='view'||a==='dl'){pushRecent(id);api('bump',{id,f:a==='dl'?'downloads':'views'}).catch(()=>{});return}
   if(a==='tog'){openSubs.has(s)?openSubs.delete(s):openSubs.add(s);return render()}
   if(a==='fav'){e.stopPropagation();toggleIn(favs,s,'fci_favs');return render()}
   if(a==='done'){toggleIn(done,id,'fci_done');return render()}
+  if(a==='note')return openNote(id);
+  if(a==='tag'){$('searchBox').value=s;Q=s.toLowerCase();return render()}
   if(a==='rep')return reportLink(id);
   if(a==='like'){const on=toggleIn(liked,id,'fci_liked');render();return act('like',{id,d:on?1:-1})}
   if(a==='share'){
@@ -532,6 +568,110 @@ function toggleNotif(){
 function closeNotif(){const d=$('notifDropdown');if(d.style.display==='block'){d.style.display='none';renderNotif()}}
 document.addEventListener('click',e=>{if(!e.target.closest('#notifDropdown,#notifBtn'))closeNotif()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotif()});
+
+/* ===== أدوات إضافية ===== */
+function tool(h){$('toolBody').innerHTML=h+'<button class="btn btn-danger" style="width:100%;margin-top:12px" onclick="closeModal(\'toolModal\')">إغلاق</button>';$('toolModal').style.display='flex'}
+function openMenu(){tool(`<h3>☰ المزيد</h3><div class="menu">${[['📅','المواعيد المهمة','openEvents()'],['💬','طلب مادة / اقتراح','openReq()'],['⏱','مؤقت المذاكرة','openPomo()'],['📊','حاسبة الدرجات','openGrade()'],['🎨','ألوان الموقع','openThemes()'],['📲','تثبيت التطبيق','openInstall()']].map(x=>`<button class="menu-btn" onclick="${x[2]}"><span>${x[0]}</span>${x[1]}</button>`).join('')}</div>`)}
+$('toolBody').addEventListener('click',e=>{
+  const ev=e.target.closest('[data-ev]'),rq=e.target.closest('[data-rq]');
+  if(ev&&confirm('حذف الموعد؟'))act('evdel',{id:ev.dataset.ev}).then(ok=>ok&&openEvents());
+  if(rq&&confirm('حذف؟'))api('reqdel',{id:rq.dataset.rq}).then(()=>openReqList()).catch(x=>toast(x.message,1));
+});
+/* المواعيد */
+const evDays=d=>Math.ceil((new Date(d+'T23:59:59')-new Date())/864e5);
+function evBadge(d){const k=evDays(d);return k<0?'<span class="countdown-badge">انتهى</span>':`<span class="countdown-badge${k<=3?' urgent':''}">${k<=1?'آخر يوم':k+' يوم'}</span>`}
+function evBanner(){
+  const a=EVENTS.filter(e=>{const k=evDays(e.date);return k>=0&&k<=7}).sort((x,y)=>x.date.localeCompare(y.date));
+  return a.length?`<div class="upcoming" style="border-color:var(--accent-color);background:rgba(252,163,17,.12)"><strong>📅 مواعيد قريبة:</strong>${a.map(e=>`<div>• ${esc(e.title)} ${e.subject?'('+esc(e.subject)+')':''} ${evBadge(e.date)}</div>`).join('')}</div>`:'';
+}
+function openEvents(){
+  const a=EVENTS.filter(e=>evDays(e.date)>=-14).sort((x,y)=>x.date.localeCompare(y.date));
+  tool(`<h3>📅 المواعيد المهمة</h3>${a.length?a.map(e=>`<div class="ev"><div><b>${esc(e.title)}</b><br><small>${esc(e.subject||'')} • ${esc(e.date)}</small></div><div>${evBadge(e.date)}${isAdmin?` <button class="btn btn-danger sm" data-ev="${esc(e.id)}">🗑️</button>`:''}</div></div>`).join(''):'<p>لا توجد مواعيد حالياً.</p>'}${isAdmin?`<hr><input id="evT" class="form-input" placeholder="العنوان (ميدتيرم، تسليم...)"><input id="evS" class="form-input" style="margin-top:8px" placeholder="المادة"><input id="evD" type="date" class="form-input" style="margin-top:8px"><button class="btn" style="width:100%;margin-top:8px" onclick="addEvent()">➕ إضافة موعد</button>`:''}`);
+}
+function addEvent(){
+  const title=$('evT').value.trim(),date=$('evD').value,subject=$('evS').value.trim();
+  if(!title||!date)return toast('اكتب العنوان والتاريخ',1);
+  act('evadd',{title,date,subject},'تمت الإضافة').then(ok=>ok&&openEvents());
+}
+/* الطلبات والاقتراحات */
+function openReq(){tool(`<h3>💬 طلب مادة / اقتراح</h3><select id="rqT" class="form-select"><option>طلب مادة</option><option>اقتراح</option><option>شكوى</option></select><input id="rqN" class="form-input" style="margin-top:8px" placeholder="اسمك (اختياري)" maxlength="30"><textarea id="rqX" class="form-input" style="margin-top:8px;min-height:90px" maxlength="500" placeholder="اكتب طلبك أو اقتراحك..."></textarea><button class="btn" style="width:100%;margin-top:8px" onclick="sendReq()">إرسال</button>${isAdmin?'<hr><button class="btn btn-warning" style="width:100%" onclick="openReqList()">📥 عرض الطلبات (للأدمن)</button>':''}`)}
+async function sendReq(){
+  const text=$('rqX').value.trim();if(!text)return toast('اكتب الرسالة',1);
+  try{await api('request',{type:$('rqT').value,name:$('rqN').value.trim(),text});toast('وصلت للإدارة، شكراً 🙏');closeModal('toolModal')}catch(e){toast(e.message||'خطأ',1)}
+}
+async function openReqList(){
+  try{const j=await api('reqlist');tool(`<h3>📥 الطلبات</h3>${j.requests.length?j.requests.map(r=>`<div class="ev"><div><b>${esc(r.type)}</b> <small>${esc(r.name||'مجهول')} • ${esc(r.date)}</small><br>${esc(r.text)}</div><button class="btn btn-danger sm" data-rq="${esc(r.id)}">🗑️</button></div>`).join(''):'<p>لا توجد طلبات.</p>'}`)}catch(e){toast(e.message||'خطأ',1)}
+}
+/* مؤقت المذاكرة */
+const PD={work:1500,short:300,long:900};let PM={mode:'work',left:1500,run:false,t:null,end:0};
+const pmCount=()=>{const o=ld('fci_pom',{});return o.d===new Date().toDateString()?o.n:0};
+function pmUi(){
+  const e=$('pmTime');if(!e)return;
+  e.textContent=String(Math.floor(PM.left/60)).padStart(2,'0')+':'+String(PM.left%60).padStart(2,'0');
+  $('pmMode').textContent=PM.mode==='work'?'🎯 مذاكرة':PM.mode==='short'?'☕ استراحة قصيرة':'🛋 استراحة طويلة';
+  $('pmGo').textContent=PM.run?'⏸ إيقاف':'▶ ابدأ';$('pmCnt').textContent=pmCount();
+}
+function pmTick(){
+  PM.left=Math.max(0,Math.round((PM.end-Date.now())/1000));
+  if(PM.left<=0){
+    clearInterval(PM.t);PM.run=false;
+    if(PM.mode==='work')sv('fci_pom',{d:new Date().toDateString(),n:pmCount()+1});
+    toast(PM.mode==='work'?'خلصت جلسة مذاكرة 🎉 خد استراحة':'الاستراحة خلصت، يلا نذاكر 💪');
+    if(navigator.vibrate)navigator.vibrate([300,150,300]);
+    PM.mode=PM.mode==='work'?'short':'work';PM.left=PD[PM.mode];
+  }
+  pmUi();
+}
+function pmToggle(){if(PM.run){pmTick();clearInterval(PM.t);PM.run=false}else{PM.run=true;PM.end=Date.now()+PM.left*1000;PM.t=setInterval(pmTick,1000)}pmUi()}
+function pmSet(m){clearInterval(PM.t);PM.run=false;PM.mode=m;PM.left=PD[m];pmUi()}
+function openPomo(){tool(`<h3>⏱ مؤقت المذاكرة</h3><div style="text-align:center"><div id="pmMode"></div><div id="pmTime" style="font-size:56px;font-weight:bold;margin:10px 0"></div><button id="pmGo" class="btn" onclick="pmToggle()"></button> <button class="btn btn-warning" onclick="pmSet(PM.mode)">↺</button><div style="margin:12px 0;display:flex;gap:6px;justify-content:center;flex-wrap:wrap"><button class="btn sm" onclick="pmSet('work')">25 مذاكرة</button><button class="btn sm" onclick="pmSet('short')">5 راحة</button><button class="btn sm" onclick="pmSet('long')">15 راحة</button></div><p>جلسات النهاردة: <b id="pmCnt"></b></p></div>`);pmUi()}
+/* حاسبة الدرجات */
+function openGrade(){tool(`<h3>📊 حاسبة الدرجات</h3><div class="form-group"><label>درجة الأعمال/الميدتيرم اللي جبتها</label><input id="gM" type="number" class="form-input" min="0"></div><div class="form-group"><label>الدرجة الكاملة للأعمال</label><input id="gMM" type="number" class="form-input" value="40"></div><div class="form-group"><label>الدرجة الكاملة للفاينال</label><input id="gF" type="number" class="form-input" value="60"></div><div class="form-group"><label>النسبة المطلوبة من المادة</label><select id="gT" class="form-select">${[50,60,65,70,75,80,85,90].map(x=>`<option value="${x}">${x}%</option>`).join('')}</select></div><button class="btn btn-warning" style="width:100%" onclick="calcGrade()">احسب</button><div id="gR" style="margin-top:12px;font-weight:bold;text-align:center"></div>`)}
+function calcGrade(){
+  const m=+$('gM').value,mm=+$('gMM').value,f=+$('gF').value,t=+$('gT').value,r=$('gR');
+  if(!(mm>0&&f>0&&m>=0&&m<=mm)){r.textContent='راجع الأرقام!';r.style.color='red';return}
+  const need=t/100*(mm+f)-m;r.style.color='';
+  r.innerHTML=need<=0?'🎉 حققت النسبة دي بالفعل من غير الفاينال':need>f?`😔 مستحيل توصل ${t}% (محتاج ${need.toFixed(1)} من ${f})`:`محتاج <b>${need.toFixed(1)}</b> من ${f} في الفاينال (${(need/f*100).toFixed(0)}%)`;
+}
+/* الألوان */
+const THEMES={default:['الافتراضي','#1B2A41','#3b5998','#fca311'],ocean:['المحيط','#0b3d5c','#1f7a8c','#f4a261'],forest:['الغابة','#1b4332','#40916c','#e9c46a'],sunset:['الغروب','#5a189a','#c9184a','#ff9e00'],rose:['الوردي','#6d2a45','#b5446e','#ffd166']};
+function setTheme(k){
+  const t=THEMES[k]||THEMES.default,st=document.body.style;
+  if(k==='default'||!THEMES[k])['--primary-color','--secondary-color','--accent-color','--b1','--b2'].forEach(x=>st.removeProperty(x));
+  else{st.setProperty('--primary-color',t[1]);st.setProperty('--secondary-color',t[2]);st.setProperty('--accent-color',t[3]);st.setProperty('--b1',t[2]);st.setProperty('--b2',t[3])}
+  sv('fci_color',k);
+}
+function openThemes(){tool(`<h3>🎨 اختار لون الموقع</h3><div class="sw">${Object.keys(THEMES).map(k=>`<button class="swb" style="background:linear-gradient(135deg,${THEMES[k][1]},${THEMES[k][2]} 60%,${THEMES[k][3]})" onclick="setTheme('${k}')">${THEMES[k][0]}</button>`).join('')}</div>`)}
+/* تثبيت التطبيق */
+let deferredInstall=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e});
+function openInstall(){
+  if(deferredInstall){closeModal('toolModal');deferredInstall.prompt();deferredInstall=null;return}
+  tool('<h3>📲 تثبيت التطبيق</h3><p><b>أندرويد (Chrome):</b> القائمة ⋮ ثم "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".</p><p><b>آيفون (Safari):</b> زرار المشاركة ⬆️ ثم "إضافة إلى الشاشة الرئيسية".</p>');
+}
+/* الأكثر استخداماً / آخر ما فتحته / الملاحظات */
+const itemRow=m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ⬇${m.downloads||0} 👁${m.views||0}</small></div><a class="btn sm" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">عرض</a></div>`;
+function openTop(){
+  const p=userPath,a=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك')).sort((x,y)=>((y.downloads||0)+(y.views||0))-((x.downloads||0)+(x.views||0))).slice(0,6);
+  tool(`<h3>🔥 الأكثر استخداماً</h3>${a.length?a.map(itemRow).join(''):'<p>مفيش ملفات.</p>'}`);
+}
+function pushRecent(id){const r=ld('fci_recent',[]).filter(x=>x!==id);r.unshift(id);sv('fci_recent',r.slice(0,10))}
+function openRecent(){const db=getDB(),a=ld('fci_recent',[]).map(id=>db.find(x=>x.id===id)).filter(Boolean);tool(`<h3>🕘 آخر ما فتحته</h3>${a.length?a.map(itemRow).join(''):'<p>لسه مفتحتش حاجة.</p>'}`)}
+function openNote(id){
+  const m=getDB().find(x=>x.id===id);if(!m)return;const n=ld('fci_notes',{});
+  tool(`<h3>📝 ملاحظتك</h3><small>${esc(m.title)}</small><textarea id="ntX" class="form-input" style="min-height:120px;margin-top:8px" placeholder="ملاحظة خاصة بيك (محفوظة على جهازك بس)">${esc(n[id]||'')}</textarea><button class="btn" style="width:100%;margin-top:8px" onclick="saveNote('${m.id}')">حفظ</button>`);
+}
+function saveNote(id){const n=ld('fci_notes',{}),t=$('ntX').value.trim();t?n[id]=t:delete n[id];sv('fci_notes',n);closeModal('toolModal');render();toast('تم الحفظ 📝')}
+/* الخلفية والثيم والـ PWA */
+(function(){
+  const b=$('bg');
+  ['</>','{ }','01','AI','#!','∑','λ','&&','fn()','π','SQL','404'].forEach((t,i)=>{
+    const e=document.createElement('span');e.className='sym';e.textContent=t;
+    e.style.cssText=`left:${(i*8.3+Math.random()*5)%95}%;font-size:${16+Math.random()*22}px;animation-duration:${24+Math.random()*26}s;animation-delay:-${Math.random()*40}s`;
+    b.appendChild(e);
+  });
+})();
+setTheme(ld('fci_color','default'));
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
 window.addEventListener('load',()=>{
   setTimeout(()=>{$('splashScreen').style.opacity=0;setTimeout(()=>$('splashScreen').remove(),500)},800);
