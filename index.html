@@ -148,6 +148,16 @@ body.dark-mode .tag{color:#fff}
 .menu-btn{display:flex;align-items:center;gap:12px;width:100%;padding:12px;border:0;border-radius:10px;background:rgba(59,89,152,.1);color:var(--text-color);font-family:'Cairo';font-size:16px;font-weight:600;cursor:pointer;text-align:right}
 .menu-btn span{font-size:22px}
 .sw{display:grid;gap:8px}.swb{border:0;border-radius:10px;color:#fff;padding:14px;font-family:'Cairo';font-size:16px;font-weight:700;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+
+:focus-visible{outline:3px solid var(--accent-color);outline-offset:2px}
+.reader{background:var(--card-bg);width:100%;max-width:900px;height:92vh;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.reader-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--primary-color);color:#fff;gap:10px}
+.reader-bar button{background:none;border:0;color:#fff;font-size:22px;cursor:pointer}
+.reader iframe{flex:1;border:0;width:100%;background:#fff}
+.stars i{font-style:normal;cursor:pointer;color:#bbb;font-size:18px}.stars i.on{color:#f1c40f}
+.badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.badge{display:flex;flex-direction:column;align-items:center;width:84px;padding:8px;border-radius:10px;background:rgba(127,127,127,.12);filter:grayscale(1);opacity:.5;font-size:26px}
+.badge.on{filter:none;opacity:1;background:rgba(252,163,17,.18)}.badge small{font-size:11px;text-align:center}
 </style>
 </head>
 <body>
@@ -169,6 +179,7 @@ body.dark-mode .tag{color:#fff}
     <button id="logoutBtn" onclick="logoutAdmin()" class="icon-link" style="display:none" title="خروج" aria-label="خروج">🚪</button>
   </div>
 </div></header>
+<div id="readModal" class="modal-overlay"><div class="reader"><div class="reader-bar"><b id="rdT"></b><button onclick="closeReader()" aria-label="إغلاق">✕</button></div><iframe id="rdF" title="عارض الملف" allowfullscreen></iframe></div></div>
 <div id="toolModal" class="modal-overlay"><div class="modal-content" id="toolBody"></div></div>
 <div id="notifDropdown" class="notif-dropdown" role="dialog" aria-label="الإشعارات"><div class="notif-head"><b>جديد المنصة</b><button onclick="closeNotif()" aria-label="إغلاق">✕</button></div><div id="notifList">لا جديد.</div></div>
 
@@ -248,6 +259,7 @@ body.dark-mode .tag{color:#fff}
       <input type="date" id="addDeadline" class="form-input" style="display:none" title="تاريخ التسليم">
       <input type="text" id="addTitle" class="form-input" placeholder="عنوان الملف">
       <input type="text" id="addTags" class="form-input" placeholder="وسوم: مهم، مراجعة (مفصولة بفاصلة)">
+      <label style="font-size:12px">نشر في وقت لاحق (اختياري)<input type="datetime-local" id="addPub" class="form-input"></label>
       <input type="url" id="addLink" class="form-input" placeholder="الرابط (https://...)">
     </div>
     <button class="btn" onclick="saveMaterial()" style="width:100%;margin-top:15px">نشر</button>
@@ -399,17 +411,17 @@ function renderReports(){
 
 /* ===== العرض ===== */
 let favs=ld('fci_favs',[]),liked=ld('fci_liked',[]),done=ld('fci_done',[]),openSubs=new Set(),Q='',W='';
-$('searchBox').addEventListener('input',e=>{Q=e.target.value.trim().toLowerCase();render()});
+$('searchBox').addEventListener('input',e=>{Q=norm(e.target.value.trim());render()});
 $('weekFilter').addEventListener('change',e=>{W=e.target.value;render()});
 
 function render(){
   const saved={};document.querySelectorAll('#cards input').forEach(i=>saved[i.id]=i.value);
-  const p=userPath,notes=ld('fci_notes',{});
-  const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'));
+  const p=userPath,notes=ld('fci_notes',{}),myr=ld('fci_rate',{});
+  const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك')&&(isAdmin||!i.publishAt||+i.publishAt<=Date.now()));
   const soon=all.filter(i=>{if(i.type!=='تكليفات'||!i.deadline||done.includes(i.id))return false;const e=new Date(i.deadline+'T23:59:59'),n=new Date();return e>=n&&e-n<7*864e5});
   $('upcoming').innerHTML=evBanner()+(soon.length?`<div class="upcoming"><strong>⏰ تكليفات قريبة:</strong>${soon.map(i=>`<div>• ${esc(i.subject)} - ${esc(i.title)} ${dlBadge(i.deadline)}</div>`).join('')}</div>`:'');
   let db=all;
-  if(Q)db=db.filter(i=>(i.title+' '+i.subject+' '+(i.tags||'')).toLowerCase().includes(Q));
+  if(Q)db=db.filter(i=>norm(i.title+' '+i.subject+' '+(i.tags||'')).includes(Q));
   if(W)db=db.filter(i=>i.week===W);
   const box=$('cards');
   if(!db.length){box.innerHTML='<p style="text-align:center">لا توجد ملفات حالياً في هذا المسار.</p>';return}
@@ -431,6 +443,7 @@ function render(){
 <div class="action-links">
 <button class="done-btn ${dn2?'on':''}" data-act="done" data-id="${m.id}" aria-label="تم">✔</button>
 <button class="report-btn" data-act="rep" data-id="${m.id}" aria-label="إبلاغ">⚠</button>
+<button class="open-btn" data-act="read" data-id="${m.id}" aria-label="قراءة">📖</button>
 <button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${m.id}" aria-label="ملاحظة">📝</button>
 <button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
 <button class="like-btn ${lk?'liked':''}" data-act="like" data-id="${m.id}">👍 ${m.likes||0}</button>
@@ -438,7 +451,7 @@ function render(){
 <a href="${esc(getDL(m.viewLink))}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${m.id}">تحميل</a>
 ${isAdmin?`<button class="edit-btn" data-act="edit" data-id="${m.id}" aria-label="تعديل">✏️</button><button class="delete-btn" data-act="del" data-id="${m.id}" aria-label="حذف">🗑️</button>`:''}
 </div></div>
-<div class="item-meta"><span>📅 ${esc(m.week||'عام')}</span><span>🗓 ${esc(m.dateAdded||'')}</span>${m.by?`<span>✍ ${esc(m.by)}</span>`:''}<span>👁 ${m.views||0}</span><span>⬇ ${m.downloads||0}</span>${m.dept==='مشترك'?'<span>🌐 مشترك</span>':''}${String(m.tags||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag" data-act="tag" data-s="${esc(t)}">#${esc(t)}</span>`).join('')}</div>
+<div class="item-meta"><span>📅 ${esc(m.week||'عام')}</span><span>🗓 ${esc(m.dateAdded||'')}</span>${m.by?`<span>✍ ${esc(m.by)}</span>`:''}<span class="stars">${[1,2,3,4,5].map(n=>`<i data-act="star" data-id="${m.id}" data-v="${n}" class="${n<=(myr[m.id]||0)?'on':''}">★</i>`).join('')} <small>${m.rcnt?(m.rsum/m.rcnt).toFixed(1)+' ('+m.rcnt+')':'قيّم'}</small></span><span>👁 ${m.views||0}</span><span>⬇ ${m.downloads||0}</span>${m.dept==='مشترك'?'<span>🌐 مشترك</span>':''}${String(m.tags||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag" data-act="tag" data-s="${esc(t)}">#${esc(t)}</span>`).join('')}</div>
 <div class="comments-section"><div>${cm}</div><div class="comment-input-box"><input type="text" id="cn-${m.id}" class="comment-input" style="max-width:100px;flex:none" placeholder="اسمك" maxlength="20"><input type="text" id="cm-${m.id}" class="comment-input" placeholder="اكتب تعليقك..." maxlength="300"><button class="btn" style="padding:5px 10px;font-size:12px" data-act="cmt" data-id="${m.id}">إرسال</button></div></div></div>`;
       });
     });
@@ -480,7 +493,7 @@ function calculateGPA(){
 
 /* ===== الاتصال بـ Google Sheets ===== */
 const API='https://script.google.com/macros/s/AKfycbyS2hyRuwqBDB5IXxlyCqM2Kzqb-j6jBDpmxlS7T4_ho1Gn1o7xSEttfcqIb1ZuthxrdQ/exec'; // رابط الـ Web App من Apps Script
-let DB=ld('fci_db',[]),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='',EVENTS=ld('fci_ev',[]);
+let DB=ld('fci_db',[]),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='',EVENTS=ld('fci_ev',[]),QUIZ=(ld('fci_ex',{}).q||[]),SCHED=(ld('fci_ex',{}).s||[]);
 const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
@@ -488,7 +501,7 @@ async function api(a,d={}){
   const j=await r.json();if(j.error)throw new Error(j.error);return j;
 }
 function apply(j){
-  if(!j||!j.items)return;DB=j.items;REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);sv('fci_db',DB);sv('fci_ann',ANN);
+  if(!j||!j.items)return;DB=j.items;REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);QUIZ=j.quiz||QUIZ;SCHED=j.schedule||SCHED;sv('fci_ex',{q:QUIZ,s:SCHED});sv('fci_db',DB);sv('fci_ann',ANN);
   renderNotif();loadAnnouncement();if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('adminDashboard').hidden){updateStats();renderReports()}
 }
@@ -509,10 +522,10 @@ async function checkLogin(){
 function logoutAdmin(){isAdmin=false;PASS='';ME='';$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome()}
 async function saveMaterial(){
   const link=safeUrl($('addLink').value.trim());
-  const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value,tags:$('addTags').value.trim()};
+  const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value,tags:$('addTags').value.trim(),publishAt:$('addPub').value?String(new Date($('addPub').value).getTime()):''};
   if(!item.subject||!item.title)return toast('أكمل الحقول!',1);
   if(!link)return toast('الرابط لازم يبدأ بـ https://',1);
-  if(await act('add',{item},'تم النشر!'))['addSubject','addTitle','addLink','addDeadline','addTags'].forEach(i=>$(i).value='');
+  if(await act('add',{item},'تم النشر!'))['addSubject','addTitle','addLink','addDeadline','addTags','addPub'].forEach(i=>$(i).value='');
 }
 function deleteMat(id){if(confirm('حذف؟'))act('del',{id},'مُسح')}
 function clearAllData(){if(confirm('تصفير كلي؟ (اعمل نسخة احتياطية الأول)'))act('clear',{},'تم')}
@@ -536,7 +549,9 @@ $('cards').addEventListener('click',e=>{
   if(a==='fav'){e.stopPropagation();toggleIn(favs,s,'fci_favs');return render()}
   if(a==='done'){toggleIn(done,id,'fci_done');return render()}
   if(a==='note')return openNote(id);
-  if(a==='tag'){$('searchBox').value=s;Q=s.toLowerCase();return render()}
+  if(a==='read')return openReader(id);
+  if(a==='star')return rateItem(id,+el.dataset.v);
+  if(a==='tag'){$('searchBox').value=s;Q=norm(s);return render()}
   if(a==='rep')return reportLink(id);
   if(a==='like'){const on=toggleIn(liked,id,'fci_liked');render();return act('like',{id,d:on?1:-1})}
   if(a==='share'){
@@ -556,7 +571,7 @@ $('cards').addEventListener('click',e=>{
 
 /* ===== الإشعارات ===== */
 function renderNotif(){
-  const seen=ld('fci_seen',0),items=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
+  const seen=ld('fci_seen',0),items=getDB().filter(i=>!i.publishAt||+i.publishAt<=Date.now()).sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
   $('notifDot').style.display=items.some(i=>i.timestamp>seen)?'block':'none';
   $('notifList').innerHTML=items.length?items.map(i=>`<div class="notif-item">${i.timestamp>seen?'🆕 ':''}${esc(i.title)} <small>(${esc(i.subject)})</small></div>`).join(''):'لا جديد.';
 }
@@ -571,9 +586,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotif()});
 
 /* ===== أدوات إضافية ===== */
 function tool(h){$('toolBody').innerHTML=h+'<button class="btn btn-danger" style="width:100%;margin-top:12px" onclick="closeModal(\'toolModal\')">إغلاق</button>';$('toolModal').style.display='flex'}
-function openMenu(){tool(`<h3>☰ المزيد</h3><div class="menu">${[['📅','المواعيد المهمة','openEvents()'],['💬','طلب مادة / اقتراح','openReq()'],['⏱','مؤقت المذاكرة','openPomo()'],['📊','حاسبة الدرجات','openGrade()'],['🎨','ألوان الموقع','openThemes()'],['📲','تثبيت التطبيق','openInstall()']].map(x=>`<button class="menu-btn" onclick="${x[2]}"><span>${x[0]}</span>${x[1]}</button>`).join('')}</div>`)}
+function openMenu(){tool(`<h3>☰ المزيد</h3><div class="menu">${[['📅','المواعيد المهمة','openEvents()'],['💬','طلب مادة / اقتراح','openReq()'],['⏱','مؤقت المذاكرة','openPomo()'],['📊','حاسبة الدرجات','openGrade()'],['🎨','ألوان الموقع','openThemes()'],['📲','تثبيت التطبيق','openInstall()'],['🏆','إنجازاتك','openStats()'],['🧠','اختبر نفسك','openQuiz()'],['🗓','جدول المحاضرات','openSched()'],['📖','عن الموقع','openAbout()'],...(isAdmin?[['📈','إحصائيات الموقع','openDash()'],['🧾','سجل النشاط','openLog()'],['🛠','إدارة الاختبارات والجداول','openManage()']]:[])].map(x=>`<button class="menu-btn" onclick="${x[2]}"><span>${x[0]}</span>${x[1]}</button>`).join('')}</div>`)}
 $('toolBody').addEventListener('click',e=>{
-  const ev=e.target.closest('[data-ev]'),rq=e.target.closest('[data-rq]');
+  const ev=e.target.closest('[data-ev]'),rq=e.target.closest('[data-rq]'),cd=e.target.closest('[data-cd]'),qs=e.target.closest('[data-qs]'),qa=e.target.closest('[data-qa]');
+  if(cd){const k=cd.dataset.cd.split('|');act('coldel',{col:k[0],id:k[1]}).then(ok=>ok&&openManage())}
+  if(qs){QZ={qs:QUIZ.filter(q=>q.subject===qs.dataset.qs).sort(()=>Math.random()-.5).slice(0,5),i:0,score:0};qzShow()}
+  if(qa&&QZ){const q=QZ.qs[QZ.i];let o=[];try{o=JSON.parse(q.opts)}catch(x){}const ok=+qa.dataset.qa===+q.ans;if(ok)QZ.score++;toast(ok?'✅ صح':'❌ الصح: '+(o[+q.ans]||''),!ok);QZ.i++;qzShow()}
   if(ev&&confirm('حذف الموعد؟'))act('evdel',{id:ev.dataset.ev}).then(ok=>ok&&openEvents());
   if(rq&&confirm('حذف؟'))api('reqdel',{id:rq.dataset.rq}).then(()=>openReqList()).catch(x=>toast(x.message,1));
 });
@@ -615,7 +633,7 @@ function pmTick(){
   PM.left=Math.max(0,Math.round((PM.end-Date.now())/1000));
   if(PM.left<=0){
     clearInterval(PM.t);PM.run=false;
-    if(PM.mode==='work')sv('fci_pom',{d:new Date().toDateString(),n:pmCount()+1});
+    if(PM.mode==='work'){sv('fci_pom',{d:new Date().toDateString(),n:pmCount()+1});markStudy(25)}
     toast(PM.mode==='work'?'خلصت جلسة مذاكرة 🎉 خد استراحة':'الاستراحة خلصت، يلا نذاكر 💪');
     if(navigator.vibrate)navigator.vibrate([300,150,300]);
     PM.mode=PM.mode==='work'?'short':'work';PM.left=PD[PM.mode];
@@ -654,7 +672,7 @@ function openTop(){
   const p=userPath,a=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك')).sort((x,y)=>((y.downloads||0)+(y.views||0))-((x.downloads||0)+(x.views||0))).slice(0,6);
   tool(`<h3>🔥 الأكثر استخداماً</h3>${a.length?a.map(itemRow).join(''):'<p>مفيش ملفات.</p>'}`);
 }
-function pushRecent(id){const r=ld('fci_recent',[]).filter(x=>x!==id);r.unshift(id);sv('fci_recent',r.slice(0,10))}
+function pushRecent(id){markStudy(0);const r=ld('fci_recent',[]).filter(x=>x!==id);r.unshift(id);sv('fci_recent',r.slice(0,10))}
 function openRecent(){const db=getDB(),a=ld('fci_recent',[]).map(id=>db.find(x=>x.id===id)).filter(Boolean);tool(`<h3>🕘 آخر ما فتحته</h3>${a.length?a.map(itemRow).join(''):'<p>لسه مفتحتش حاجة.</p>'}`)}
 function openNote(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;const n=ld('fci_notes',{});
@@ -672,6 +690,89 @@ function saveNote(id){const n=ld('fci_notes',{}),t=$('ntX').value.trim();t?n[id]
 })();
 setTheme(ld('fci_color','default'));
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+
+/* ===== الإصدار 3: عارض، اختبارات، جدول، إنجازات، إحصائيات ===== */
+const norm=t=>String(t||'').toLowerCase().replace(/[\u064B-\u065F\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
+/* عارض الملفات */
+function readerUrl(l){
+  let m=l.match(/drive\.google\.com\/file\/d\/([\w-]+)/)||l.match(/drive\.google\.com\/open\?id=([\w-]+)/);
+  if(m)return 'https://drive.google.com/file/d/'+m[1]+'/preview';
+  m=l.match(/docs\.google\.com\/(document|presentation|spreadsheets)\/d\/([\w-]+)/);
+  if(m)return 'https://docs.google.com/'+m[1]+'/d/'+m[2]+'/preview';
+  m=l.match(/(?:youtu\.be\/|v=)([\w-]{11})/);
+  return m?'https://www.youtube.com/embed/'+m[1]:'';
+}
+function openReader(id){
+  const m=getDB().find(x=>x.id===id);if(!m)return;const u=readerUrl(m.viewLink);
+  if(!u){window.open(m.viewLink,'_blank','noopener');return}
+  pushRecent(id);api('bump',{id,f:'views'}).catch(()=>{});
+  $('rdT').textContent=m.title;$('rdF').src=u;$('readModal').style.display='flex';
+}
+function closeReader(){$('rdF').src='about:blank';$('readModal').style.display='none'}
+/* التقييم */
+function rateItem(id,v){const r=ld('fci_rate',{}),old=r[id]||0;r[id]=v;sv('fci_rate',r);act('rate',{id,v,old})}
+/* الإنجازات */
+const dstr=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+function markStudy(min){
+  const t=dstr(Date.now()),s=ld('fci_study',{days:{},open:0});
+  s.days[t]=(s.days[t]||0)+min;if(!min)s.open=(s.open||0)+1;
+  const n={};Object.keys(s.days).sort().slice(-60).forEach(k=>n[k]=s.days[k]);s.days=n;sv('fci_study',s);
+}
+function openStats(){
+  const s=ld('fci_study',{days:{},open:0});let st=0;const d=new Date();
+  if(s.days[dstr(d)]===undefined)d.setDate(d.getDate()-1);
+  while(s.days[dstr(d)]!==undefined){st++;d.setDate(d.getDate()-1)}
+  const tot=Object.keys(s.days).reduce((a,k)=>a+s.days[k],0);
+  const wk=[0,1,2,3,4,5,6].map(i=>{const x=new Date();x.setDate(x.getDate()-6+i);return [['ح','ن','ث','ر','خ','ج','س'][x.getDay()],s.days[dstr(x)]||0]});
+  const mx=Math.max(30,...wk.map(x=>x[1]));
+  const bd=[[st>=3,'🔥','3 أيام متتالية'],[st>=7,'🔥🔥','أسبوع متواصل'],[st>=30,'🏅','شهر كامل'],[tot>=60,'⏱','ساعة مذاكرة'],[tot>=600,'🎓','10 ساعات'],[s.open>=10,'📚','فتحت 10 ملفات'],[s.open>=50,'🦉','فتحت 50 ملف']];
+  tool(`<h3>🏆 إنجازاتك</h3><div style="text-align:center"><div style="font-size:42px">🔥 ${st}</div><div>يوم متتالي</div><p>مذاكرة المؤقت: <b>${tot}</b> دقيقة</p></div><div style="display:flex;gap:6px;align-items:flex-end;height:90px;margin:10px 0">${wk.map(x=>`<div style="flex:1;text-align:center;font-size:11px"><div style="background:var(--accent-color);border-radius:4px 4px 0 0;height:${Math.round(x[1]/mx*60)}px"></div>${x[0]}</div>`).join('')}</div><div class="badges">${bd.map(b=>`<span class="badge${b[0]?' on':''}">${b[1]}<small>${b[2]}</small></span>`).join('')}</div>`);
+}
+/* الاختبارات */
+let QZ=null;
+function openQuiz(){
+  const ss=Array.from(new Set(QUIZ.map(q=>q.subject)));
+  tool(`<h3>🧠 اختبر نفسك</h3>${ss.length?'<p>اختار المادة:</p><div class="menu">'+ss.map(x=>`<button class="menu-btn" data-qs="${esc(x)}">${esc(x)} <small>(${QUIZ.filter(q=>q.subject===x).length} سؤال)</small></button>`).join('')+'</div>':'<p>لسه مفيش أسئلة، الأدمن هيضيفها قريب.</p>'}`);
+}
+function qzShow(){
+  const q=QZ.qs[QZ.i];
+  if(!q){const p=Math.round(QZ.score/QZ.qs.length*100);return tool(`<h3>النتيجة</h3><div style="text-align:center;font-size:42px">${QZ.score} / ${QZ.qs.length}</div><p style="text-align:center">${p>=80?'ممتاز 🎉':p>=50?'كويس، كمّل 💪':'محتاج مراجعة 📚'}</p><button class="btn" style="width:100%" onclick="openQuiz()">اختبار تاني</button>`)}
+  let o=[];try{o=JSON.parse(q.opts)}catch(e){}
+  tool(`<h3>سؤال ${QZ.i+1} من ${QZ.qs.length}</h3><p><b>${esc(q.q)}</b></p><div class="menu">${o.map((t,i)=>`<button class="menu-btn" data-qa="${i}">${esc(t)}</button>`).join('')}</div>`);
+}
+/* الجدول */
+const DAYS=['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
+function openSched(){
+  const p=userPath,td=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'][new Date().getDay()];
+  const a=SCHED.filter(x=>(!p.track||x.track===p.track)&&(!p.level||x.level===p.level)&&(!p.dept||x.dept===p.dept||x.dept==='مشترك'));
+  tool(`<h3>🗓 جدول المحاضرات</h3>${a.length?DAYS.filter(d=>a.some(x=>x.day===d)).map(d=>`<h4 style="margin:10px 0 4px;${d===td?'color:var(--accent-color)':''}">${d}${d===td?' (النهاردة)':''}</h4>`+a.filter(x=>x.day===d).sort((x,y)=>x.time.localeCompare(y.time)).map(x=>`<div class="ev"><div><b>${esc(x.subject)}</b><br><small>${esc(x.place)}</small></div><b>${esc(x.time)}</b></div>`).join('')).join(''):'<p>مفيش جدول لمسارك لسه. اختار مسارك من الرئيسية الأول.</p>'}`);
+}
+/* عن الموقع */
+function openAbout(){tool('<h3>📖 عن الموقع</h3><p>FCI-Materials منصة مجانية لمواد كلية الحاسبات والمعلومات بجامعة أسيوط. لو لقيت رابط مش شغال اضغط ⚠ جنب الملف، ولو محتاج مادة معيّنة ابعت طلب من القائمة.</p><button class="btn" style="width:100%" onclick="shareSite()">🔗 شارك الموقع</button>')}
+function shareSite(){const u=location.href.split('?')[0];if(navigator.share)navigator.share({title:'FCI-Materials',text:'مواد كلية الحاسبات والمعلومات - جامعة أسيوط',url:u}).catch(()=>{});else copyText(u)}
+/* أدوات الأدمن */
+function openDash(){
+  const db=getDB(),sum=f=>db.reduce((a,i)=>a+(i[f]||0),0),by={};
+  db.forEach(i=>{const o=by[i.subject]=by[i.subject]||{n:0,u:0};o.n++;o.u+=(i.views||0)+(i.downloads||0)});
+  const top=db.slice().sort((a,b)=>((b.views||0)+(b.downloads||0))-((a.views||0)+(a.downloads||0))).slice(0,6);
+  tool(`<h3>📈 إحصائيات الموقع</h3><div class="stats-container"><div class="stat-box"><div class="stat-num">${db.length}</div>ملف</div><div class="stat-box"><div class="stat-num">${sum('views')}</div>مشاهدة</div><div class="stat-box"><div class="stat-num">${sum('downloads')}</div>تحميل</div><div class="stat-box"><div class="stat-num">${sum('likes')}</div>إعجاب</div></div><h4>أكتر المواد استخداماً</h4>${Object.keys(by).sort((a,b)=>by[b].u-by[a].u).slice(0,6).map(k=>`<div class="ev"><span>${esc(k)}</span><span>${by[k].u} استخدام • ${by[k].n} ملف</span></div>`).join('')}<h4>أكتر الملفات</h4>${top.map(itemRow).join('')}`);
+}
+async function openLog(){
+  try{const j=await api('loglist');tool(`<h3>🧾 سجل النشاط</h3>${j.log.length?j.log.map(l=>`<div class="ev"><div><b>${esc(l.a)}</b> <small>${esc(l.d)}</small><br><small>${esc(l.n)} • ${esc(l.t)}</small></div></div>`).join(''):'<p>لا يوجد نشاط.</p>'}`)}catch(e){toast(e.message||'خطأ',1)}
+}
+function openManage(){
+  tool(`<h3>🛠 الاختبارات والجداول</h3><h4>➕ سؤال</h4><input id="qS" class="form-input" placeholder="المادة"><input id="qQ" class="form-input" style="margin-top:6px" placeholder="نص السؤال"><textarea id="qO" class="form-input" style="margin-top:6px" placeholder="الاختيارات، كل اختيار في سطر"></textarea><input id="qA" type="number" min="1" class="form-input" style="margin-top:6px" placeholder="رقم الإجابة الصحيحة (1 = أول اختيار)"><button class="btn" style="width:100%;margin-top:6px" onclick="addQ()">إضافة السؤال</button><hr><h4>➕ محاضرة في الجدول</h4><div class="form-grid"><select id="sT" class="form-select"><option>عام</option><option>خاص</option></select><select id="sD" class="form-select">${['مشترك'].concat(DEPTS).map(x=>`<option>${x}</option>`).join('')}</select><select id="sL" class="form-select">${LEVELS.map(x=>`<option>${x}</option>`).join('')}</select><select id="sDay" class="form-select">${DAYS.map(x=>`<option>${x}</option>`).join('')}</select><input id="sTm" class="form-input" placeholder="الوقت 10:00 - 12:00"><input id="sS" class="form-input" placeholder="المادة"><input id="sP" class="form-input" placeholder="المكان (قاعة 3)"></div><button class="btn" style="width:100%;margin-top:6px" onclick="addS()">إضافة للجدول</button><hr><h4>الأسئلة (${QUIZ.length})</h4>${QUIZ.slice(-15).map(q=>`<div class="ev"><div><small>${esc(q.subject)}</small> ${esc(q.q)}</div><button class="btn btn-danger sm" data-cd="quiz|${esc(q.id)}">🗑️</button></div>`).join('')}<h4>الجدول (${SCHED.length})</h4>${SCHED.slice(-20).map(x=>`<div class="ev"><div><small>${esc(x.level)} • ${esc(x.day)}</small> ${esc(x.subject)}</div><button class="btn btn-danger sm" data-cd="schedule|${esc(x.id)}">🗑️</button></div>`).join('')}`);
+}
+function addQ(){
+  const sub=$('qS').value.trim(),q=$('qQ').value.trim(),o=$('qO').value.split('\n').map(x=>x.trim()).filter(Boolean),a=(+$('qA').value)-1;
+  if(!sub||!q||o.length<2||!(a>=0&&a<o.length))return toast('راجع السؤال والاختيارات ورقم الإجابة',1);
+  act('coladd',{col:'quiz',f:{subject:sub,q,opts:JSON.stringify(o),ans:String(a)}},'تمت الإضافة').then(ok=>ok&&openManage());
+}
+function addS(){
+  const f={track:$('sT').value,dept:$('sD').value,level:$('sL').value,day:$('sDay').value,time:$('sTm').value.trim(),subject:$('sS').value.trim(),place:$('sP').value.trim()};
+  if(!f.subject||!f.time)return toast('اكتب المادة والوقت',1);
+  act('coladd',{col:'schedule',f},'تمت الإضافة').then(ok=>ok&&openManage());
+}
 
 window.addEventListener('load',()=>{
   setTimeout(()=>{$('splashScreen').style.opacity=0;setTimeout(()=>$('splashScreen').remove(),500)},800);
