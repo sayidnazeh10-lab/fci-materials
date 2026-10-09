@@ -249,7 +249,7 @@ function safeUrl(s){try{const u=new URL(s);return /^https?:$/.test(u.protocol)?u
 function getDL(l){
   let m=l.match(/docs\.google\.com\/(document|presentation|spreadsheets)\/d\/([\w-]+)/);
   if(m)return `https://docs.google.com/${m[1]}/d/${m[2]}/export?format=${m[1]==='spreadsheets'?'xlsx':m[1]==='presentation'?'pptx':'pdf'}`;
-  if(l.includes('drive.google.com')&&!l.includes('/folders/')){m=l.match(/\/d\/([\w-]+)/)||l.match(/[?&]id=([\w-]+)/);if(m)return `https://drive.google.com/uc?export=download&id=${m[1]}`}
+  if(l.includes('drive.google.com')&&!l.includes('/folders/')){m=l.match(/\/d\/([\w-]+)/)||l.match(/[?&]id=([\w-]+)/);if(m)return `https://drive.usercontent.google.com/download?id=${m[1]}&export=download&confirm=t`}
   return l;
 }
 function getIcon(l){if(l.includes('youtu'))return '🎬';if(/\.pdf($|\?)/i.test(l))return '📄';if(l.includes('/folders/'))return '📁';return '🔗'}
@@ -387,7 +387,7 @@ function render(){
 <button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
 <button class="like-btn ${lk?'liked':''}" data-act="like" data-id="${m.id}">👍 ${m.likes||0}</button>
 <a href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer" class="open-btn" data-act="view" data-id="${m.id}">عرض</a>
-<a href="${esc(m.downloadLink)}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${m.id}">تحميل</a>
+<a href="${esc(getDL(m.viewLink))}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${m.id}">تحميل</a>
 ${isAdmin?`<button class="edit-btn" data-act="edit" data-id="${m.id}" aria-label="تعديل">✏️</button><button class="delete-btn" data-act="del" data-id="${m.id}" aria-label="حذف">🗑️</button>`:''}
 </div></div>
 <div class="item-meta"><span>📅 ${esc(m.week||'عام')}</span><span>🗓 ${esc(m.dateAdded||'')}</span>${m.by?`<span>✍ ${esc(m.by)}</span>`:''}<span>👁 ${m.views||0}</span><span>⬇ ${m.downloads||0}</span>${m.dept==='مشترك'?'<span>🌐 مشترك</span>':''}</div>
