@@ -10,11 +10,6 @@
 <style>
 :root{--bg-color:#f4f7f6;--text-color:#333;--card-bg:#fff;--primary-color:#1B2A41;--secondary-color:#3b5998;--accent-color:#fca311;--danger-color:#e74c3c;--success-color:#27ae60;--warning-color:#f39c12;--border-radius:12px}
 body.dark-mode{--bg-color:#121212;--text-color:#e0e0e0;--card-bg:#1e1e1e;--primary-color:#2c3e50;--secondary-color:#34495e;--accent-color:#e67e22;--danger-color:#c0392b;--success-color:#2ecc71}
-body.focus-mode .site-header,body.focus-mode .chosen-level-bar,body.focus-mode .announcement-bar,body.focus-mode .comments-section{display:none!important}
-body.focus-mode{background:#000;color:#fff}
-body.focus-mode .drawer-label,body.focus-mode .material-card{background:#000;border:1px solid #333;box-shadow:none}
-body.focus-mode .subject-btn{background:#111;border:1px solid #333}
-body.focus-mode .material-item{background:#0a0a0a}
 body{font-family:'Cairo',sans-serif;background:var(--bg-color);color:var(--text-color);margin:0;transition:.3s;overflow-x:hidden}
 .wrap{max-width:800px;margin:0 auto;padding:20px}
 [hidden]{display:none!important}
@@ -106,7 +101,6 @@ body.dark-mode .comment-item{background:#1a1a1a}
 <header class="site-header"><div class="wrap header-inner">
   <div class="brand"><span class="brand-mark">FCI</span><div class="brand-text"><h1>FCI-Materials</h1><p>جامعة أسيوط</p></div></div>
   <div class="header-actions">
-    <button onclick="toggleFocusMode()" class="icon-link" title="وضع التركيز" aria-label="وضع التركيز">🎯</button>
     <button onclick="openGPAModal()" class="icon-link" title="حاسبة المعدل" aria-label="حاسبة المعدل">🧮</button>
     <div style="position:relative">
       <button onclick="toggleNotifications()" class="icon-link" title="الإشعارات" aria-label="الإشعارات">🔔<span id="notifDot" class="notification-dot"></span></button>
@@ -268,7 +262,6 @@ let isAdmin=false;
 const bodyEl=document.body;
 if(ld('fci_theme','')==='dark'){bodyEl.classList.add('dark-mode');$('themeToggleBtn').textContent='☀️'}
 $('themeToggleBtn').onclick=()=>{bodyEl.classList.toggle('dark-mode');const d=bodyEl.classList.contains('dark-mode');sv('fci_theme',d?'dark':'light');$('themeToggleBtn').textContent=d?'☀️':'🌙'};
-function toggleFocusMode(){bodyEl.classList.toggle('focus-mode');toast(bodyEl.classList.contains('focus-mode')?'وضع التركيز مُفعل 🎯':'تم إلغاء وضع التركيز')}
 
 /* ===== تهيئة القوائم ===== */
 $('deptBtns').innerHTML=DEPTS.map(d=>`<button class="btn" data-k="dept" data-v="${esc(d)}" data-n="levelStep">${esc(d)}</button>`).join('');
