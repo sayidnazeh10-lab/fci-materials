@@ -24,7 +24,6 @@ body{font-family:'Cairo',sans-serif;background:var(--bg-color);color:var(--text-
 .brand-text p{margin:0;font-size:12px;opacity:.8}
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .icon-link{background:none;border:none;font-size:20px;cursor:pointer;color:#fff;padding:5px;position:relative}
-.notification-dot{position:absolute;top:0;right:0;background:red;width:10px;height:10px;border-radius:50%;display:none}
 .announcement-bar{background:var(--warning-color);color:#000;padding:10px 20px;text-align:center;font-weight:bold;font-size:14px;display:none}
 .drawer-label{background:var(--card-bg);padding:30px;border-radius:var(--border-radius);box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:20px;text-align:center;animation:fadeIn .4s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -89,8 +88,6 @@ body.dark-mode .comment-item{background:#1a1a1a}
 .stat-num{font-size:24px;font-weight:bold;color:var(--accent-color)}
 #toast-container{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
 .toast{color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
-.notif-dropdown{position:absolute;top:40px;left:0;background:var(--card-bg);color:var(--text-color);width:280px;border-radius:8px;box-shadow:0 5px 15px rgba(0,0,0,.2);padding:15px;display:none;text-align:right;z-index:200;border:1px solid #ddd}
-.notif-item{padding:10px;border-bottom:1px solid #eee;font-size:13px}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -114,11 +111,15 @@ h2{font-size:26px}
 .form-grid{grid-template-columns:1fr}
 .comment-input-box{flex-wrap:wrap}.comment-input-box .comment-input{max-width:none!important;flex:1 1 100%!important}
 .stat-box{min-width:45%}
-.notif-dropdown{position:fixed;top:64px;left:10px;right:10px;width:auto}
 .modal-overlay{padding:10px}
 .toast{max-width:90vw;text-align:center}
 }
 @media(max-width:360px){.level-picker .btn{flex:1 1 100%}}
+.notification-dot{position:absolute;top:2px;right:2px;background:red;width:10px;height:10px;border-radius:50%;display:none}
+.notif-dropdown{position:fixed;left:50%;transform:translateX(-50%);width:min(340px,94vw);max-height:60vh;overflow-y:auto;background:var(--card-bg);color:var(--text-color);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:12px;display:none;text-align:right;z-index:500;border:1px solid #ddd}
+.notif-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:8px}
+.notif-head button{border:0;background:none;font-size:20px;cursor:pointer;color:inherit}
+.notif-item{padding:8px 4px;border-bottom:1px solid #eee;font-size:14px}
 </style>
 </head>
 <body>
@@ -126,14 +127,11 @@ h2{font-size:26px}
 <div id="globalAnnouncement" class="announcement-bar"></div>
 <div id="toast-container"></div>
 
-<header class="site-header"><div class="wrap header-inner">
+<header class="site-header" id="siteHeader"><div class="wrap header-inner">
   <div class="brand"><span class="brand-mark">FCI</span><div class="brand-text"><h1>FCI-Materials</h1><p>جامعة أسيوط</p></div></div>
   <div class="header-actions">
     <button onclick="openGPAModal()" class="icon-link" title="حاسبة المعدل" aria-label="حاسبة المعدل">🧮</button>
-    <div style="position:relative">
-      <button onclick="toggleNotifications()" class="icon-link" title="الإشعارات" aria-label="الإشعارات">🔔<span id="notifDot" class="notification-dot"></span></button>
-      <div id="notifDropdown" class="notif-dropdown"><h4 style="margin:0 0 10px;border-bottom:1px solid #ccc;padding-bottom:5px">جديد المنصة</h4><div id="notifList">لا جديد.</div></div>
-    </div>
+    <button id="notifBtn" onclick="toggleNotif()" class="icon-link" title="الإشعارات" aria-label="الإشعارات">🔔<span id="notifDot" class="notification-dot"></span></button>
     <button onclick="refresh(true)" class="icon-link" title="تحديث" aria-label="تحديث">🔄</button>
     <button id="themeToggleBtn" class="icon-link" title="المظهر" aria-label="المظهر">🌙</button>
     <button onclick="goHome()" class="icon-link" title="الرئيسية" aria-label="الرئيسية">🏠</button>
@@ -141,6 +139,7 @@ h2{font-size:26px}
     <button id="logoutBtn" onclick="logoutAdmin()" class="icon-link" style="display:none" title="خروج" aria-label="خروج">🚪</button>
   </div>
 </div></header>
+<div id="notifDropdown" class="notif-dropdown" role="dialog" aria-label="الإشعارات"><div class="notif-head"><b>جديد المنصة</b><button onclick="closeNotif()" aria-label="إغلاق">✕</button></div><div id="notifList">لا جديد.</div></div>
 
 <main class="wrap">
 <div id="studentFlow">
@@ -302,13 +301,7 @@ $('weekFilter').innerHTML='<option value="">كل الأسابيع</option>'+opts
 $('addType').onchange=()=>{$('addDeadline').style.display=$('addType').value==='تكليفات'?'block':'none'};
 
 /* ===== الإشعارات والإعلان ===== */
-function checkNew(){
-  const last=ld('fci_last_visit',Date.now());
-  const n=getDB().filter(i=>i.timestamp>last);
-  if(n.length){$('notifDot').style.display='block';$('notifList').innerHTML=n.slice(0,5).map(i=>`<div class="notif-item">إضافة: ${esc(i.title)} (${esc(i.subject)})</div>`).join('')}
-  sv('fci_last_visit',Date.now());
-}
-function toggleNotifications(){const d=$('notifDropdown');d.style.display=d.style.display==='block'?'none':'block';$('notifDot').style.display='none'}
+
 
 
 
@@ -462,7 +455,7 @@ async function api(a,d={}){
 }
 function apply(j){
   if(!j||!j.items)return;DB=j.items;REPS=j.reports||[];ANN=j.ann||'';sv('fci_db',DB);sv('fci_ann',ANN);
-  loadAnnouncement();if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
+  renderNotif();loadAnnouncement();if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('adminDashboard').hidden){updateStats();renderReports()}
 }
 async function refresh(manual){
@@ -525,9 +518,24 @@ $('cards').addEventListener('click',e=>{
   }
 });
 
+/* ===== الإشعارات ===== */
+function renderNotif(){
+  const seen=ld('fci_seen',0),items=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
+  $('notifDot').style.display=items.some(i=>i.timestamp>seen)?'block':'none';
+  $('notifList').innerHTML=items.length?items.map(i=>`<div class="notif-item">${i.timestamp>seen?'🆕 ':''}${esc(i.title)} <small>(${esc(i.subject)})</small></div>`).join(''):'لا جديد.';
+}
+function toggleNotif(){
+  const d=$('notifDropdown');if(d.style.display==='block')return closeNotif();
+  d.style.top=($('siteHeader').getBoundingClientRect().bottom+8)+'px';d.style.display='block';
+  sv('fci_seen',Date.now());$('notifDot').style.display='none';
+}
+function closeNotif(){const d=$('notifDropdown');if(d.style.display==='block'){d.style.display='none';renderNotif()}}
+document.addEventListener('click',e=>{if(!e.target.closest('#notifDropdown,#notifBtn'))closeNotif()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotif()});
+
 window.addEventListener('load',()=>{
   setTimeout(()=>{$('splashScreen').style.opacity=0;setTimeout(()=>$('splashScreen').remove(),500)},800);
-  loadAnnouncement();goHome();refresh().then(checkNew);
+  loadAnnouncement();goHome();if(!ld('fci_seen',0))sv('fci_seen',Date.now());renderNotif();refresh();
 });
 </script>
 </body>
