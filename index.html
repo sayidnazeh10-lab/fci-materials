@@ -91,6 +91,34 @@ body.dark-mode .comment-item{background:#1a1a1a}
 .toast{color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
 .notif-dropdown{position:absolute;top:40px;left:0;background:var(--card-bg);color:var(--text-color);width:280px;border-radius:8px;box-shadow:0 5px 15px rgba(0,0,0,.2);padding:15px;display:none;text-align:right;z-index:200;border:1px solid #ddd}
 .notif-item{padding:10px;border-bottom:1px solid #eee;font-size:13px}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row .form-input{flex:1;min-width:150px}
+.action-links a,.action-links button{min-height:36px}
+@media(min-width:900px){.wrap{max-width:1000px}.card-grid{grid-template-columns:1fr 1fr;align-items:start}.modal-content{max-width:460px}}
+@media(max-width:600px){
+.wrap{padding:12px}
+.header-inner{padding:0 10px;justify-content:center}
+.brand-text h1{font-size:22px}.brand-mark{font-size:18px}
+.header-actions{gap:2px;justify-content:center}.icon-link{font-size:22px;padding:8px}
+.drawer-label{padding:18px 14px}
+h2{font-size:26px}
+.level-picker{gap:10px}.level-picker .btn{flex:1 1 calc(50% - 10px);padding:12px 8px;font-size:15px}
+.chosen-level-bar{flex-direction:column;align-items:stretch;text-align:center}
+.filters{flex-direction:column}.filters .form-select{max-width:none!important}
+.subject-btn{font-size:17px;padding:12px 14px}
+.subject-content{padding:12px}
+.item-header{flex-direction:column;align-items:stretch}
+.action-links{width:100%}.action-links button,.action-links a{flex:1 1 auto;min-height:40px;display:inline-flex;align-items:center;justify-content:center}
+.form-grid{grid-template-columns:1fr}
+.comment-input-box{flex-wrap:wrap}.comment-input-box .comment-input{max-width:none!important;flex:1 1 100%!important}
+.stat-box{min-width:45%}
+.notif-dropdown{position:fixed;top:64px;left:10px;right:10px;width:auto}
+.modal-overlay{padding:10px}
+.toast{max-width:90vw;text-align:center}
+}
+@media(max-width:360px){.level-picker .btn{flex:1 1 100%}}
 </style>
 </head>
 <body>
@@ -174,11 +202,11 @@ body.dark-mode .comment-item{background:#1a1a1a}
   </div>
   <div style="background:rgba(243,156,18,.1);padding:15px;border-radius:8px;margin-bottom:20px;border:1px solid var(--warning-color)">
     <h4 style="margin-top:0">📢 إعلان للطلاب</h4>
-    <div style="display:flex;gap:10px"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
+    <div class="row"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
   </div>
   <div style="background:rgba(0,0,0,.02);padding:20px;border-radius:8px;border:1px solid #ddd">
     <h3 style="margin-top:0">إضافة محتوى / تكليف</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="form-grid">
       <select id="addTrack" class="form-select"><option value="عام">نظام عام</option><option value="خاص">نظام خاص (برامج)</option></select>
       <select id="addDept" class="form-select"></select>
       <select id="addLevel" class="form-select"></select>
