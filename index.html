@@ -153,6 +153,23 @@ body.dark-mode .tag{color:#fff}
 .reader-bar button{background:none;border:0;color:#fff;font-size:22px;cursor:pointer}
 .reader iframe{flex:1;border:0;width:100%;background:#fff}
 @media(max-width:600px){.sym{display:none}}
+
+.atabs{display:flex;gap:6px;overflow-x:auto;margin:16px 0;padding-bottom:6px;border-bottom:2px solid rgba(127,127,127,.2);-webkit-overflow-scrolling:touch}
+.atab{flex:1 0 auto;padding:10px 14px;border:0;background:transparent;font-family:'Cairo';font-size:15px;font-weight:700;cursor:pointer;border-radius:10px;color:var(--text-color);opacity:.75;white-space:nowrap}
+.atab.on{opacity:1;background:var(--secondary-color);color:#fff}
+.rbadge:not(:empty){background:var(--danger-color);color:#fff;border-radius:10px;padding:1px 7px;font-size:12px;margin-right:4px}
+.apanel{text-align:right}
+.acard{background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.18);border-radius:12px;padding:16px;margin-bottom:16px}
+.acard h4{margin:0 0 10px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:linear-gradient(135deg,var(--secondary-color),var(--primary-color));color:#fff;border-radius:14px;padding:14px;text-align:center}
+.stat-card .ic{font-size:24px}.stat-card .stat-num{color:#fff;font-size:26px}.stat-card small{opacity:.85}
+.agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:8px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:0;border-radius:12px;background:rgba(59,89,152,.12);color:var(--text-color);font-family:'Cairo';font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.tile span{font-size:26px}.tile:hover{background:var(--secondary-color);color:#fff;transform:translateY(-2px)}
+.frow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid rgba(127,127,127,.25);flex-wrap:wrap}
+.finfo{flex:1;min-width:220px;text-align:right;line-height:1.7}
+.finfo small{color:#888}
 </style>
 </head>
 <body>
@@ -229,43 +246,97 @@ body.dark-mode .tag{color:#fff}
 </section>
 
 <section id="adminDashboard" class="drawer-label" hidden>
-  <h2>لوحة التحكم</h2>
-  <div id="reportsSection" class="reports-container"><h3 style="margin-top:0">⚠️ روابط مُبلغ عنها:</h3><div id="reportsList"></div></div>
-  <div class="stats-container">
-    <div class="stat-box"><div style="font-size:12px;color:#888">الكل</div><div id="statTotal" class="stat-num">0</div></div>
-    <div class="stat-box"><div style="font-size:12px;color:#888">محاضرات/سكاشن</div><div id="statLecSec" class="stat-num">0</div></div>
-    <div class="stat-box"><div style="font-size:12px;color:#888">الامتحانات</div><div id="statExams" class="stat-num">0</div></div>
-    <div class="stat-box"><div style="font-size:12px;color:#888">مشاهدات/تحميلات</div><div id="statViews" class="stat-num">0</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h2 style="margin:0">لوحة التحكم</h2><span id="adminHello" class="tag" style="font-size:14px"></span>
   </div>
-  <div style="background:rgba(243,156,18,.1);padding:15px;border-radius:8px;margin-bottom:20px;border:1px solid var(--warning-color)">
-    <h4 style="margin-top:0">📢 إعلان للطلاب</h4>
-    <div class="row"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
+  <div class="atabs" role="tablist">
+    <button class="atab on" data-t="home" onclick="adminTab('home')">🏠 الرئيسية <span id="repBadge" class="rbadge"></span></button>
+    <button class="atab" data-t="add" onclick="adminTab('add')">➕ إضافة</button>
+    <button class="atab" data-t="files" onclick="adminTab('files')">🗂 الملفات</button>
+    <button class="atab" data-t="settings" onclick="adminTab('settings')">⚙️ الإعدادات</button>
   </div>
-  <div style="background:rgba(0,0,0,.02);padding:20px;border-radius:8px;border:1px solid #ddd">
-    <h3 style="margin-top:0">إضافة محتوى / تكليف</h3>
-    <div class="form-grid">
-      <select id="addTrack" class="form-select"><option value="عام">نظام عام</option><option value="خاص">نظام خاص (برامج)</option></select>
-      <select id="addDept" class="form-select"></select>
-      <select id="addLevel" class="form-select"></select>
-      <select id="addSemester" class="form-select"><option value="الفصل الأول">الفصل الأول</option><option value="الفصل الثاني">الفصل الثاني</option></select>
-      <input type="text" id="addSubject" class="form-input" placeholder="اسم المادة">
-      <select id="addWeek" class="form-select"></select>
-      <select id="addType" class="form-select"></select>
-      <input type="date" id="addDeadline" class="form-input" style="display:none" title="تاريخ التسليم">
-      <input type="text" id="addTitle" class="form-input" placeholder="عنوان الملف">
-      <input type="text" id="addTags" class="form-input" placeholder="وسوم: مهم، مراجعة (مفصولة بفاصلة)">
-      <input type="text" id="addDoctor" class="form-input" placeholder="اسم الدكتور (اختياري)">
-      <label style="font-size:12px">نشر في وقت لاحق (اختياري)<input type="datetime-local" id="addPub" class="form-input"></label>
-      <input type="url" id="addLink" class="form-input" placeholder="الرابط (https://...)">
+
+  <div id="ap-home" class="apanel">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="ic">📁</div><div id="statTotal" class="stat-num">0</div><small>إجمالي الملفات</small></div>
+      <div class="stat-card"><div class="ic">📚</div><div id="statSubs" class="stat-num">0</div><small>مادة</small></div>
+      <div class="stat-card"><div class="ic">🎓</div><div id="statLecSec" class="stat-num">0</div><small>محاضرات/سكاشن</small></div>
+      <div class="stat-card"><div class="ic">📝</div><div id="statExams" class="stat-num">0</div><small>امتحانات</small></div>
+      <div class="stat-card"><div class="ic">👁</div><div id="statViews" class="stat-num">0</div><small>مشاهدات / تحميلات</small></div>
     </div>
-    <button class="btn" onclick="saveMaterial()" style="width:100%;margin-top:15px">نشر</button>
-    <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:bold">➕ إضافة جماعية (ملفات كتير مرة واحدة)</summary><p style="font-size:12px;margin:6px 0">اختار النظام والقسم والفرقة والترم والمادة والنوع والأسبوع من الفورم اللي فوق، وبعدين اكتب كل ملف في سطر بالشكل: العنوان | الرابط</p><textarea id="addBulk" class="form-input" style="min-height:110px" placeholder="محاضرة 1 | https://drive.google.com/..."></textarea><button class="btn" style="width:100%;margin-top:8px" onclick="saveBulk()">نشر الكل</button></details>
+    <div id="reportsSection" class="reports-container"><h3 style="margin-top:0">⚠️ روابط مُبلغ عنها</h3><div id="reportsList"></div></div>
+    <div class="acard">
+      <h4>📢 إعلان للطلاب</h4>
+      <div class="row"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
+    </div>
+    <h4>اختصارات</h4>
+    <div class="agrid">
+      <button class="tile" onclick="openEvents()"><span>📅</span>المواعيد</button>
+      <button class="tile" onclick="openManage()"><span>🗓</span>الجدول</button>
+      <button class="tile" onclick="openReqList()"><span>📥</span>طلبات الطلاب</button>
+      <button class="tile" onclick="openDash()"><span>📈</span>إحصائيات</button>
+      <button class="tile" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
+    </div>
   </div>
-  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-    <button class="btn" onclick="exportBackup()">⬇️ نسخة احتياطية</button>
-    <button class="btn" onclick="document.getElementById('importFile').click()">⬆️ استرجاع نسخة</button>
-    <input type="file" id="importFile" accept=".json" hidden>
-    <button class="btn btn-danger" onclick="clearAllData()">تصفير السيستم ⚠️</button>
+
+  <div id="ap-add" class="apanel" hidden>
+    <div class="acard">
+      <h4>1) المسار</h4>
+      <div class="form-grid">
+        <select id="addTrack" class="form-select"><option value="عام">نظام عام</option><option value="خاص">نظام خاص (برامج)</option></select>
+        <select id="addDept" class="form-select"></select>
+        <select id="addLevel" class="form-select"></select>
+        <select id="addSemester" class="form-select"><option value="الفصل الأول">الفصل الأول</option><option value="الفصل الثاني">الفصل الثاني</option></select>
+        <input type="text" id="addSubject" class="form-input" placeholder="اسم المادة">
+        <input type="text" id="addDoctor" class="form-input" placeholder="اسم الدكتور (اختياري)">
+      </div>
+    </div>
+    <div class="acard">
+      <h4>2) الملف</h4>
+      <div class="form-grid">
+        <select id="addType" class="form-select"></select>
+        <select id="addWeek" class="form-select"></select>
+        <input type="text" id="addTitle" class="form-input" placeholder="عنوان الملف">
+        <input type="url" id="addLink" class="form-input" placeholder="الرابط (https://...)">
+        <input type="text" id="addTags" class="form-input" placeholder="وسوم: مهم، مراجعة (اختياري)">
+        <input type="date" id="addDeadline" class="form-input" style="display:none" title="تاريخ التسليم">
+        <label style="font-size:12px">نشر في وقت لاحق (اختياري)<input type="datetime-local" id="addPub" class="form-input"></label>
+      </div>
+      <button class="btn" onclick="saveMaterial()" style="width:100%;margin-top:14px">🚀 نشر الملف</button>
+    </div>
+    <div class="acard">
+      <h4>➕ إضافة جماعية</h4>
+      <p style="font-size:12px;margin:0 0 8px">يستخدم بيانات المسار والمادة والنوع والأسبوع من فوق. اكتب كل ملف في سطر بالشكل: العنوان | الرابط (حتى 40 ملف).</p>
+      <textarea id="addBulk" class="form-input" style="min-height:110px" placeholder="محاضرة 1 | https://drive.google.com/..."></textarea>
+      <button class="btn" style="width:100%;margin-top:8px" onclick="saveBulk()">نشر الكل</button>
+    </div>
+  </div>
+
+  <div id="ap-files" class="apanel" hidden>
+    <div class="filters" style="margin-top:0">
+      <input type="search" id="afSearch" class="form-input" placeholder="🔍 ابحث بالعنوان أو المادة أو الدكتور..." aria-label="بحث في الملفات">
+      <select id="afSub" class="form-select" style="max-width:200px" aria-label="المادة"></select>
+    </div>
+    <p style="margin:8px 0;font-size:13px;color:#888"><span id="afCount"></span> • الأحدث أولاً</p>
+    <div id="afList"></div>
+    <button id="afMore" class="btn" style="width:100%;margin-top:10px;display:none">عرض المزيد</button>
+  </div>
+
+  <div id="ap-settings" class="apanel" hidden>
+    <div class="acard">
+      <h4>💾 النسخ الاحتياطي</h4>
+      <p style="font-size:12px;margin:0 0 8px">انزّل نسخة من كل الملفات كل فترة، وتقدر ترجّعها وقت الحاجة.</p>
+      <div class="row"><button class="btn" onclick="exportBackup()">⬇️ نسخة احتياطية</button><button class="btn owner-only" onclick="document.getElementById('importFile').click()">⬆️ استرجاع نسخة</button><input type="file" id="importFile" accept=".json" hidden></div>
+    </div>
+    <div class="acard owner-only">
+      <h4>⚠️ منطقة الخطر</h4>
+      <p style="font-size:12px;margin:0 0 8px">يمسح كل الملفات والبلاغات نهائياً. اعمل نسخة احتياطية الأول.</p>
+      <button class="btn btn-danger" onclick="clearAllData()">تصفير السيستم</button>
+    </div>
+    <div class="acard">
+      <h4>🚪 الجلسة</h4>
+      <button class="btn btn-warning" onclick="logoutAdmin()">تسجيل الخروج</button>
+    </div>
   </div>
 </section>
 </main>
@@ -378,7 +449,7 @@ $('studentFlow').addEventListener('click',e=>{
 function showSection(id){
   ['studentFlow','adminLogin','adminDashboard'].forEach(i=>$(i).hidden=true);$(id).hidden=false;
   if(id==='studentFlow'&&!$('resultsStep').hidden)render();
-  if(id==='adminDashboard'){updateStats();renderReports()}
+  if(id==='adminDashboard')adminTab('home')
 }
 
 /* ===== الإدارة ===== */
@@ -388,7 +459,7 @@ $('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')checkLogin(
 function updateStats(){
   const db=getDB();$('statTotal').textContent=db.length;
   $('statLecSec').textContent=db.filter(i=>i.type==='محاضرات'||i.type==='سكاشن').length;
-  $('statExams').textContent=db.filter(i=>i.type==='امتحانات سابقة').length;
+  $('statSubs').textContent=new Set(db.map(i=>i.subject)).size;$('statExams').textContent=db.filter(i=>i.type==='امتحانات سابقة').length;
   $('statViews').textContent=db.reduce((a,i)=>a+(i.views||0),0)+' / '+db.reduce((a,i)=>a+(i.downloads||0),0);
 }
 
@@ -408,7 +479,7 @@ function exportBackup(){
 /* ===== البلاغات ===== */
 
 function renderReports(){
-  const r=getReps();$('reportsSection').style.display=r.length?'block':'none';
+  const r=getReps();$('repBadge').textContent=r.length||'';$('reportsSection').style.display=r.length?'block':'none';
   $('reportsList').innerHTML=r.map(x=>`<div class="report-item"><span>${esc(x.subject)} - ${esc(x.title)}</span><button class="btn btn-warning" style="padding:4px 10px" data-rid="${esc(x.id)}">إخفاء</button></div>`).join('');
 }
 
@@ -498,7 +569,7 @@ function calculateGPA(){
 
 /* ===== الاتصال بـ Google Sheets ===== */
 const API='https://script.google.com/macros/s/AKfycbyS2hyRuwqBDB5IXxlyCqM2Kzqb-j6jBDpmxlS7T4_ho1Gn1o7xSEttfcqIb1ZuthxrdQ/exec'; // رابط الـ Web App من Apps Script
-let DB=ld('fci_db',[]),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='',EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]);
+let DB=ld('fci_db',[]),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]);
 const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
@@ -508,7 +579,7 @@ async function api(a,d={}){
 function apply(j){
   if(!j||!j.items)return;DB=j.items;REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);SCHED=j.schedule||SCHED;sv('fci_sched',SCHED);sv('fci_db',DB);sv('fci_ann',ANN);
   renderNotif();loadAnnouncement();if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
-  if(!$('adminDashboard').hidden){updateStats();renderReports()}
+  if(!$('adminDashboard').hidden){updateStats();renderReports();if(!$('ap-files').hidden)renderAdminFiles()}
 }
 async function refresh(manual){
   try{if(!hasApi())throw new Error('لسه مفيش رابط API');apply(await (await fetch(API)).json());if(manual===true)toast('تم التحديث ✅')}
@@ -521,10 +592,10 @@ function saveAnnouncement(){act('ann',{text:$('announceInput').value.trim()},'ت
 function clearAnnouncement(){act('ann',{text:''},'تم الحذف')}
 async function checkLogin(){
   const p=$('adminPassword').value;if(!p)return;PASS=p;
-  try{const j=await api('login');ME=j.name;isAdmin=true;$('adminPassword').value='';$('adminBtn').style.display='none';$('logoutBtn').style.display='block';showSection('adminDashboard');toast('أهلاً '+ME+' 👋')}
+  try{const j=await api('login');ME=j.name;OWNER=!!j.owner;isAdmin=true;$('adminHello').textContent='👤 '+ME+(OWNER?' • مالك':' • أدمن');document.querySelectorAll('.owner-only').forEach(e=>e.style.display=OWNER?'':'none');$('adminPassword').value='';$('adminBtn').style.display='none';$('logoutBtn').style.display='block';showSection('adminDashboard');toast('أهلاً '+ME+' 👋')}
   catch(e){PASS='';toast(e.message||'خطأ',1)}
 }
-function logoutAdmin(){isAdmin=false;PASS='';ME='';$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome()}
+function logoutAdmin(){isAdmin=false;PASS='';ME='';OWNER=false;$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome()}
 async function saveMaterial(){
   const link=safeUrl($('addLink').value.trim());
   const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value,tags:$('addTags').value.trim(),doctor:$('addDoctor').value.trim(),publishAt:$('addPub').value?String(new Date($('addPub').value).getTime()):''};
@@ -713,6 +784,30 @@ function doCopy(id){
   if(it.track===m.track&&it.dept===m.dept&&it.level===m.level&&it.semester===m.semester)return toast('اختار مسار مختلف',1);
   act('addmany',{items:[it]},'تم النسخ ✅').then(ok=>ok&&closeModal('toolModal'));
 }
+/* ===== لوحة الأدمن: التبويبات وإدارة الملفات ===== */
+const AF={q:'',s:'',n:50,k:''};
+function adminTab(t){
+  document.querySelectorAll('.apanel').forEach(x=>x.hidden=x.id!=='ap-'+t);
+  document.querySelectorAll('.atab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  if(t==='home'){updateStats();renderReports()}
+  if(t==='files')renderAdminFiles();
+}
+function renderAdminFiles(){
+  const db=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp),q=norm(AF.q);
+  const subs=Array.from(new Set(db.map(i=>i.subject))).sort((a,b)=>a.localeCompare(b,'ar'));
+  if(AF.k!==subs.join('|')){AF.k=subs.join('|');if(AF.s&&subs.indexOf(AF.s)<0)AF.s='';$('afSub').innerHTML='<option value="">كل المواد</option>'+opts(subs,AF.s)}
+  const all=db.filter(i=>(!AF.s||i.subject===AF.s)&&(!q||norm(i.title+' '+i.subject+' '+(i.tags||'')+' '+(i.doctor||'')).includes(q)));
+  const l=all.slice(0,AF.n);
+  $('afCount').textContent=all.length+' ملف';
+  $('afList').innerHTML=l.length?l.map(m=>{
+    const can=OWNER||m.by===ME,sch=m.publishAt&&+m.publishAt>Date.now();
+    return `<div class="frow"><div class="finfo"><b>${esc(m.title)}</b>${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0} 👍${m.likes||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${m.id}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${m.id}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${m.id}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
+  }).join(''):'<p style="text-align:center">لا توجد ملفات.</p>';
+  $('afMore').style.display=all.length>AF.n?'block':'none';
+}
+$('afSearch').addEventListener('input',e=>{AF.q=e.target.value.trim();AF.n=50;renderAdminFiles()});
+$('afSub').addEventListener('change',e=>{AF.s=e.target.value;AF.n=50;renderAdminFiles()});
+$('afMore').addEventListener('click',()=>{AF.n+=50;renderAdminFiles()});
 /* القوائم والخلفية */
 $('typeFilter').innerHTML='<option value="">كل الأنواع</option>'+opts(TYPES);
 $('typeFilter').addEventListener('change',e=>{TF=e.target.value;render()});
