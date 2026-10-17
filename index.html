@@ -284,9 +284,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
   <div class="chosen-level-bar">
     <span>🗓 جدول المحاضرات والسكاشن ومتتبع الغياب</span>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer">
-        <input type="checkbox" id="toggleAiDefaultSched" checked onchange="renderScheduleHub()"> إظهار جدول الذكاء الاصطناعي (فرقة 2)
-      </label>
+      
     </div>
   </div>
 
@@ -338,7 +336,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
 <section id="gpaView" class="drawer-label" hidden>
   <div class="chosen-level-bar">
     <span>🧮 حاسبة المعدل التراكمي (GPA) وحاسبة درجات الميدتيرم والفاينال</span>
-    <button type="button" class="btn sm btn-warning" onclick="resetDefaultGpaCourses()">↺ استعادة مواد الفرقة الثانية AI</button>
+    <button type="button" class="btn sm btn-warning" onclick="resetDefaultGpaCourses()">🗑️ مسح كل المواد</button>
   </div>
 
   <div class="two-col">
@@ -352,11 +350,11 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <div class="form-grid" style="margin-bottom:12px">
         <div class="form-group" style="margin:0">
           <label>المعدل التراكمي السابق (CGPA)</label>
-          <input type="number" id="prevGpa" class="form-input" placeholder="مثال: 3.45" step="0.01" min="0" max="4" value="3.45">
+          <input type="number" id="prevGpa" class="form-input" placeholder="مثال: 3.45" step="0.01" min="0" max="4">
         </div>
         <div class="form-group" style="margin:0">
           <label>الساعات المجتازة سابقاً</label>
-          <input type="number" id="prevHrs" class="form-input" placeholder="مثال: 36" min="0" max="144" value="36">
+          <input type="number" id="prevHrs" class="form-input" placeholder="مثال: 36" min="0" max="144">
         </div>
       </div>
 
@@ -500,13 +498,14 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
     </div>
     <div class="pbar" style="height:10px"><i id="planProgressBar" style="width:25%"></i></div>
     <p style="font-size:12px;color:#888;margin:6px 0 0">💡 <b>تنبيه لائحة كلية الحاسبات والمعلومات بجامعة أسيوط:</b> يُشترط لطلاب شعبة <b>علمي علوم</b> اجتياز مقرر تكميلي مقابل لمادة <b>رياضيات (2)</b> المقررة على علمي رياضة (خارج المعدل التراكمي CGPA).</p>
+    <p style="font-size:12px;color:#888;margin:6px 0 0">⚠️ مقررات الخطة والمسارات والمهارات هنا <b>استرشادية للتخطيط الشخصي</b> وليست الخطة الرسمية للكلية، عدّلها حسب لائحة برنامجك.</p>
   </div>
 
   <!-- 8 AI Specializations -->
   <div class="acard">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
       <div>
-        <h3 style="margin:0">🎯 التخصصات الـ 8 الدقيقة ببرنامج الذكاء الاصطناعي</h3>
+        <h3 style="margin:0">🎯 مسارات الذكاء الاصطناعي (تصنيف استرشادي)</h3>
         <small style="color:#888">اضغط على أي مسار لتصفية مقرراته الدراسية بالأسفل</small>
       </div>
       <button type="button" class="pill-btn" onclick="setAiTrackFilter('all')">عرض كل المسارات</button>
@@ -558,12 +557,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
 
     <div class="acard" style="margin-bottom:0">
       <h3>🏛️ بطاقة تعريف الكلية والروابط الرسمية</h3>
-      <div class="ev"><span>رئيس جامعة أسيوط:</span><b>أ.د/ أحمد المنشاوي</b></div>
-      <div class="ev"><span>نائب رئيس الجامعة للتعليم والطلاب:</span><b>أ.د/ أحمد عبد المولى</b></div>
-      <div class="ev"><span>عميدة كلية الحاسبات والمعلومات:</span><b>أ.د/ تيسير حسن عبد الحميد</b></div>
-      <div class="ev"><span>وكيل الكلية لشئون التعليم والطلاب:</span><b>أ.د/ خالد فتحي حسين</b></div>
-      <div class="ev"><span>منسق برنامج الذكاء الاصطناعي:</span><b>د./ ممدوح فاروق</b></div>
-      <div class="ev"><span>تليفون وبريد الكلية:</span><b dir="ltr">(088) 347678 | fci_assiut@fci.au.edu.eg</b></div>
+      <p style="font-size:13px;color:#888;margin:6px 0">أسماء القيادات وبيانات التواصل بتتغيّر، فراجعها من موقع الكلية الرسمي.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
         <a href="https://www.aun.edu.eg/fci/ar" target="_blank" rel="noopener noreferrer" class="btn sm" style="text-decoration:none;text-align:center">🌐 موقع الكلية الرسمي</a>
         <a href="https://www.aun.edu.eg/fci/ar/students_affairs/layhh-albrnamj" target="_blank" rel="noopener noreferrer" class="btn sm" style="text-decoration:none;text-align:center">📜 لائحة برنامج AI</a>
@@ -735,7 +729,8 @@ const LEVELS=['الفرقة الأولى','الفرقة الثانية','الف�
 const TYPES=['محاضرات','سكاشن','ملخصات','امتحانات سابقة','تكليفات'];
 const WEEKS=['عام',...Array.from({length:16},(_,i)=>'الأسبوع '+(i+1)),'ميدتيرم','فاينال'];
 const DAYS=['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
-const GRADE_POINTS={'A+ (90%+)':4.0,'A (85-89%)':3.7,'B+ (80-84%)':3.3,'B (75-79%)':3.0,'C+ (70-74%)':2.7,'C (65-69%)':2.4,'D+ (60-64%)':2.2,'D (50-59%)':2.0,'F (<50%)':0.0};
+const GRADE_POINTS={'A (90-100)':4.0,'A- (85-90)':3.7,'B+ (80-85)':3.3,'B (75-80)':3.0,'B- (70-75)':2.7,'C+ (65-70)':2.3,'C (60-65)':2.0,'C- (55-60)':1.7,'D+ (50-55)':1.3,'D (45-50)':1.0,'F (<45)':0.0};
+const GRADE_MIGRATE={'A+ (90%+)':'A (90-100)','A (85-89%)':'A- (85-90)','B+ (80-84%)':'B+ (80-85)','B (75-79%)':'B (75-80)','C+ (70-74%)':'B- (70-75)','C (65-69%)':'C+ (65-70)','D+ (60-64%)':'C (60-65)','D (50-59%)':'D+ (50-55)','F (<50%)':'F (<45)'};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -871,42 +866,11 @@ $('studentFlow').addEventListener('click',e=>{
 });
 
 /* ===== البيانات المدمجة: جدول الذكاء الاصطناعي، الغياب، الـ GPA، المهام، وخطة الـ 144 ساعة ===== */
-const AI_DEFAULT_SCHED=[
-  {id:'ai_s1',subject:'هياكل متقطعة — أ.د/ خالد فتحي حسين (فصل 1 & 2)',day:'الاثنين',time:'08:00 - 10:00 ص',place:'مدرج 9',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s2',subject:'البرمجة الشيئية — م/ سهيلة نعمان (فصل 2)',day:'الاثنين',time:'10:00 - 12:00 ظ',place:'معمل 3أ',type:'سكشن / معمل عملي',isAiDefault:true},
-  {id:'ai_s3',subject:'إدارة مشروعات — أ.م.د/ إبراهيم العوضي (فصل 1 & 2)',day:'الاثنين',time:'02:00 - 04:00 م',place:'مدرج 9',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s4',subject:'إدارة أعمال — أ.م.د/ هبة إبراهيم شفيع (فصل 1 & 2)',day:'الاثنين',time:'04:00 - 06:00 م',place:'مدرج 5',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s5',subject:'البرمجة الشيئية — م/ سهيلة نعمان (فصل 1)',day:'الاثنين',time:'06:00 - 08:00 م',place:'معمل 3أ',type:'سكشن / معمل عملي',isAiDefault:true},
-  {id:'ai_s6',subject:'تراسل البيانات وشبكات الحاسب — أ.م.د/ داليا نشأت & د/ علي حسين (فصل 1 & 2)',day:'الثلاثاء',time:'08:00 - 10:00 ص',place:'مدرج 7',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s7',subject:'تمارين هياكل متقطعة — م/ ندى صلاح (فصل 1 & 2)',day:'الثلاثاء',time:'10:00 - 12:00 ظ',place:'مدرج 4أ',type:'سكشن / معمل عملي',isAiDefault:true},
-  {id:'ai_s8',subject:'البرمجة الشيئية — د/ ماجد أحمد جاد الرب عسكر (فصل 1 & 2)',day:'الثلاثاء',time:'04:00 - 06:00 م',place:'مدرج 2',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s9',subject:'الإشارات والأنظمة — د/ أمل عبد العظيم (فصل 1 & 2)',day:'الأربعاء',time:'08:00 - 10:00 ص',place:'مدرج 1',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s10',subject:'الإشارات والأنظمة — م/ مريم ملاك (فصل 1)',day:'الأربعاء',time:'10:00 - 12:00 ظ',place:'معمل 2هـ',type:'سكشن / معمل عملي',isAiDefault:true},
-  {id:'ai_s11',subject:'الاحتمالات والإحصاء — د/ سارة محمد عادل محمد (فصل 1 & 2)',day:'الأربعاء',time:'12:00 - 02:00 م',place:'مدرج 3',type:'محاضرة نظري',isAiDefault:true},
-  {id:'ai_s12',subject:'الإشارات والأنظمة — م/ مريم ملاك (فصل 2)',day:'الأربعاء',time:'02:00 - 04:00 م',place:'معمل 3أ',type:'سكشن / معمل عملي',isAiDefault:true},
-  {id:'ai_s13',subject:'إدارة المشروعات — م/ شيماء مرسي (فصل 1) | م/ ماريا أيمن (فصل 2)',day:'الخميس',time:'10:00 - 12:00 ظ',place:'معمل 1ب (فصل 1) / معمل 3ب (فصل 2)',type:'سكشن / معمل عملي',isAiDefault:true},
-  {id:'ai_s14',subject:'تمارين تراسل البيانات — م/ مريم عصام (فصل 1 & 2)',day:'الخميس',time:'12:00 - 02:00 م',place:'مدرج 4أ',type:'سكشن / معمل عملي',isAiDefault:true}
-];
+const AI_DEFAULT_SCHED=[];
 
-const DEFAULT_ATTENDANCE=[
-  {id:'a1',course:'هياكل متقطعة (أ.د/ خالد فتحي)',absences:0,max:4},
-  {id:'a2',course:'البرمجة الشيئية (د/ ماجد عسكر)',absences:0,max:4},
-  {id:'a3',course:'تراسل البيانات وشبكات الحاسب',absences:1,max:4},
-  {id:'a4',course:'الإشارات والأنظمة (د/ أمل عبد العظيم)',absences:0,max:4},
-  {id:'a5',course:'الاحتمالات والإحصاء (د/ سارة عادل)',absences:0,max:4},
-  {id:'a6',course:'إدارة مشروعات (أ.م.د/ إبراهيم العوضي)',absences:1,max:4},
-  {id:'a7',course:'إدارة أعمال (أ.م.د/ هبة شفيع)',absences:0,max:4}
-];
+const DEFAULT_ATTENDANCE=[];
 
-const DEFAULT_GPA_COURSES=[
-  {id:'g1',name:'هياكل متقطعة (أ.د/ خالد فتحي حسين)',hours:3,grade:'A (85-89%)'},
-  {id:'g2',name:'البرمجة الشيئية (د/ ماجد أحمد جاد الرب عسكر)',hours:3,grade:'A+ (90%+)'},
-  {id:'g3',name:'تراسل البيانات وشبكات الحاسب (أ.م.د/ داليا نشأت & د/ علي حسين)',hours:3,grade:'B+ (80-84%)'},
-  {id:'g4',name:'الإشارات والأنظمة (د/ أمل عبد العظيم)',hours:3,grade:'A (85-89%)'},
-  {id:'g5',name:'الاحتمالات والإحصاء (د/ سارة محمد عادل)',hours:3,grade:'A (85-89%)'},
-  {id:'g6',name:'إدارة مشروعات (أ.م.د/ إبراهيم العوضي)',hours:3,grade:'B+ (80-84%)'},
-  {id:'g7',name:'إدارة أعمال (أ.م.د/ هبة إبراهيم شفيع)',hours:2,grade:'A+ (90%+)'}
-];
+const DEFAULT_GPA_COURSES=[];
 
 const AI_8_TRACKS=[
   {id:'fundamentals',name:'أساسيات الذكاء الاصطناعي',icon:'🧭',desc:'خوارزميات البحث، تمثيل المعرفة، والمنطق الرياضي'},
@@ -938,16 +902,12 @@ const DEFAULT_CURRICULUM=[
   {code:'AI403',title:'النظم الذكية المتقدمة والتعلم المعزز (RL)',level:4,hours:3,track:'intelligent_sys',status:'planned'},
   {code:'AI499',title:'مشروع التخرج في الذكاء الاصطناعي والتدريب الميداني',level:4,hours:6,track:'ai_practice',status:'planned'}
 ];
+DEFAULT_CURRICULUM.forEach(c=>{c.status='pending'});
 
-const DEFAULT_TASKS=[
-  {id:'t1',title:'تسليم شيت الهياكل المتقطعة (م/ ندى صلاح)',course:'هياكل متقطعة',date:'2026-10-22',priority:'عاجل',done:false},
-  {id:'t2',title:'تطبيق عملي Classes & Inheritance في السكشن (م/ سهيلة نعمان)',course:'البرمجة الشيئية',date:'2026-10-25',priority:'متوسط',done:false},
-  {id:'t3',title:'مراجعة تمارين تراسل البيانات وشبكات الحاسب (م/ مريم عصام)',course:'تراسل البيانات',date:'2026-10-28',priority:'عادي',done:false},
-  {id:'t4',title:'حل شيت أسيوط للبرمجة التنافسية (ICPC Assiut Sheet #1)',course:'تدريب برمجي',date:'2026-10-15',priority:'متوسط',done:true}
-];
+const DEFAULT_TASKS=[];
 
 const DEFAULT_SKILLS=[
-  {id:'sk1',title:'إتقان أساسيات البرمجة وحل المشكلات (ICPC Assiut Sheets - C++ / Python)',done:true},
+  {id:'sk1',title:'إتقان أساسيات البرمجة وحل المشكلات (C++ / Python)',done:true},
   {id:'sk2',title:'مكتبات علوم البيانات الأساسية (NumPy, Pandas, Matplotlib)',done:true},
   {id:'sk3',title:'خوارزميات التعلم الآلي الكلاسيكية (Scikit-Learn: Regression, SVM, Trees)',done:false},
   {id:'sk4',title:'التعلم العميق والشبكات العصبية (PyTorch / TensorFlow & Keras)',done:false},
@@ -955,14 +915,15 @@ const DEFAULT_SKILLS=[
   {id:'sk6',title:'معالجة اللغات الطبيعية ونماذج الذكاء التوليدي (NLP, Transformers & RAG)',done:false},
   {id:'sk7',title:'إدارة الأكواد والمشاريع البرمجية (Git, GitHub & Kaggle Competitions)',done:true}
 ];
+DEFAULT_SKILLS.forEach(k=>{k.done=false});
 
 let customSched=ld('fci_custom_sched',[]);
 let attendanceList=ld('fci_attendance',DEFAULT_ATTENDANCE);
-let gpaCoursesList=ld('fci_rich_gpa',DEFAULT_GPA_COURSES);
+let gpaCoursesList=ld('fci_rich_gpa',DEFAULT_GPA_COURSES).map(c=>Object.assign({},c,{grade:GRADE_MIGRATE[c.grade]||c.grade}));
 let personalTasks=ld('fci_personal_tasks',DEFAULT_TASKS);
 let curriculumList=ld('fci_ai_curriculum',DEFAULT_CURRICULUM);
 let skillsList=ld('fci_ai_skills',DEFAULT_SKILLS);
-let studyStats=ld('fci_study_stats',{minutes:125,sessions:5});
+let studyStats=ld('fci_study_stats',{minutes:0,sessions:0});
 let activeSchedDay='all';
 let activeTaskFilter='all';
 let activeAiTrack='all';
@@ -976,7 +937,7 @@ function renderScheduleHub(){
 
   const p=userPath;
   const backendSched=SCHED.filter(x=>(!p.track||x.track===p.track)&&(!p.level||x.level===p.level)&&(!p.dept||x.dept===p.dept||x.dept==='مشترك'));
-  const showAi=$('toggleAiDefaultSched').checked;
+  const showAi=false;
   const combined=[
     ...(showAi?AI_DEFAULT_SCHED:[]),
     ...backendSched.map(x=>({id:x.id,subject:x.subject,day:x.day,time:x.time,place:x.place,type:'محاضرة / سكشن',isBackend:true})),
@@ -1070,14 +1031,11 @@ $('addAttCourseForm').addEventListener('submit',e=>{
 
 /* ===== 3. منطق حاسبة الـ GPA والدرجات ===== */
 function getGpaGradeLabel(g){
-  if(g>=3.85)return 'امتياز مرتفع (A+)';
-  if(g>=3.50)return 'امتياز (A)';
-  if(g>=3.20)return 'جيد جداً مرتفع (B+)';
-  if(g>=2.85)return 'جيد جداً (B)';
-  if(g>=2.50)return 'جيد مرتفع (C+)';
-  if(g>=2.20)return 'جيد (C)';
-  if(g>=2.00)return 'مقبول (D)';
-  return 'أقل من 2.0 — إنذار أكاديمي (F)';
+  if(g>=3.7)return 'ممتاز (تقريباً)';
+  if(g>=3.0)return 'جيد جداً (تقريباً)';
+  if(g>=2.3)return 'جيد (تقريباً)';
+  if(g>=2.0)return 'مقبول (تقريباً)';
+  return 'أقل من 2.0 — ملاحظة أكاديمية';
 }
 function computeGpaStats(){
   const prevG=parseFloat($('prevGpa').value)||0;
@@ -1085,7 +1043,7 @@ function computeGpaStats(){
   let semH=0,semP=0;
   gpaCoursesList.forEach(c=>{
     const h=parseFloat(c.hours)||0;
-    const pt=GRADE_POINTS[c.grade]!==undefined?GRADE_POINTS[c.grade]:3.7;
+    const pt=GRADE_POINTS[c.grade]!==undefined?GRADE_POINTS[c.grade]:0;
     if(h>0){semH+=h;semP+=h*pt}
   });
   const semGpa=semH>0?(semP/semH):0;
@@ -1094,7 +1052,7 @@ function computeGpaStats(){
   return {prevG,prevH,semH,semGpa,totH,newCgpa};
 }
 function renderGpaHub(){
-  const savedMeta=ld('fci_gpa_meta',{prevG:3.45,prevH:36});
+  const savedMeta=ld('fci_gpa_meta',{prevG:'',prevH:''});
   if(!$('prevGpa').dataset.init){
     $('prevGpa').value=savedMeta.prevG;
     $('prevHrs').value=savedMeta.prevH;
@@ -1144,7 +1102,7 @@ function updateGpaCourse(id,field,val){
   refreshGpaNumbers();
 }
 function addRichGpaCourse(){
-  gpaCoursesList.push({id:'gc_'+Date.now(),name:'مقرر جديد',hours:3,grade:'A (85-89%)'});
+  gpaCoursesList.push({id:'gc_'+Date.now(),name:'مقرر جديد',hours:3,grade:'B (75-80)'});
   sv('fci_rich_gpa',gpaCoursesList);
   renderGpaHub();
 }
@@ -1157,7 +1115,7 @@ function resetDefaultGpaCourses(){
   gpaCoursesList=JSON.parse(JSON.stringify(DEFAULT_GPA_COURSES));
   sv('fci_rich_gpa',gpaCoursesList);
   renderGpaHub();
-  toast('تمت استعادة مواد الفرقة الثانية — ذكاء اصطناعي');
+  toast('تم مسح كل المواد');
 }
 function simulateTargetGpa(){
   const desired=parseFloat($('targetCgpaInput').value)||3.5;
@@ -1187,7 +1145,7 @@ function calcInlineCourseGrade(){
 let pomoInterval=null,pomoSeconds=25*60,pomoMode=25,pomoRunning=false,pomoSound=true;
 function renderStudyHub(){
   $('studyStatsBanner').textContent=`🔥 إنجاز المذاكرة: ${studyStats.minutes} دقيقة (${studyStats.sessions} جلسات)`;
-  if(!$('taskDateIn').value)$('taskDateIn').value='2026-10-25';
+  if(!$('taskDateIn').value)$('taskDateIn').value=new Date().toISOString().slice(0,10);
 
   /* التكليفات المرفوعة على المنصة */
   const p=userPath;
@@ -1216,7 +1174,7 @@ function renderStudyHub(){
     </div>`;
   }).join(''):'<p style="text-align:center;color:#888">لا توجد مهام في هذا التصنيف.</p>';
 
-  $('quickNotesArea').value=ld('fci_quick_notes','• أسيوط ICPC Community: حل شيتات البرمجة بلغة C++.\n• مراجعة محاضرات الهياكل المتقطعة والبرمجة الشيئية أولاً بأول.');
+  $('quickNotesArea').value=ld('fci_quick_notes','');
   renderSavedFileNotesList();
 }
 function setTaskFilter(f){
