@@ -173,6 +173,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
   .form-grid{grid-template-columns:1fr}
   .sym{display:none}
 }
+.save-btn{color:#c0392b;background:rgba(192,57,43,.1)}.save-btn.on{background:#c0392b;color:#fff}
 </style>
 </head>
 <body>
@@ -610,6 +611,9 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <button class="tile" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
       <button class="tile" onclick="openHealth()"><span>🩺</span>صحة الروابط</button>
       <button class="tile" onclick="openTrash()"><span>♻️</span>سلة المحذوفات</button>
+      <button class="tile" onclick="openGaps()"><span>🕳</span>المحتوى الناقص</button>
+      <button class="tile" onclick="openShareMsg()"><span>📣</span>رسالة جاهزة للجروب</button>
+      <button class="tile" onclick="exportCsv()"><span>📤</span>تصدير CSV</button>
     </div>
   </div>
 
@@ -1212,7 +1216,7 @@ function copyQuickNotes(){copyText($('quickNotesArea').value)}
 /* ملاحظات الملفات الفردية (إصلاح openNote) */
 function openNote(id){
   const m=getDB().find(x=>x.id===id);
-  const notes=ld('fci_notes',{});
+  const notes=ld('fci_notes',{}),saved=ld('fci_saved',[]);
   const cur=notes[id]||'';
   tool(`<h3>📝 ملاحظة خاصة على الملف</h3><p style="font-size:13px;color:#888;margin:0 0 8px">${esc(m?m.subject+' — '+m.title:'ملف دراسي')}</p><textarea id="fileNoteInput" class="form-input" rows="5" placeholder="اكتب ملاحظاتك أو النقاط المهمة في هذا الملف...">${esc(cur)}</textarea><div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn" style="flex:1" onclick="saveFileNote('${esc(id)}')">💾 حفظ الملاحظة</button><button type="button" class="btn btn-warning" onclick="deleteFileNote('${esc(id)}')">مسح</button></div>`);
 }
@@ -1452,6 +1456,7 @@ function render(){
 <button class="done-btn ${dn2?'on':''}" data-act="done" data-id="${m.id}" aria-label="تم">✔</button>
 <button class="report-btn" data-act="rep" data-id="${m.id}" aria-label="إبلاغ">⚠</button>
 <button class="open-btn" data-act="read" data-id="${m.id}" aria-label="قراءة">📖</button>
+<button class="note-btn save-btn ${saved.indexOf(m.id)>-1?'on':''}" data-act="save" data-id="${m.id}" aria-label="حفظ">🔖</button>
 <button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${m.id}" aria-label="ملاحظة">📝</button>
 <button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
 <button class="like-btn ${lk?'liked':''}" data-act="like" data-id="${m.id}">👍 ${m.likes||0}</button>
@@ -1535,6 +1540,7 @@ $('cards').addEventListener('click',e=>{
   if(a==='sharesub'){e.stopPropagation();return shareSub(s)}
   if(a==='fav'){e.stopPropagation();toggleIn(favs,s,'fci_favs');return render()}
   if(a==='done'){toggleIn(done,id,'fci_done');return render()}
+  if(a==='save')return toggleSaved(id);
   if(a==='note')return openNote(id);
   if(a==='read')return openReader(id);
   if(a==='tag'){$('searchBox').value=s;Q=norm(s);return render()}
@@ -1556,6 +1562,83 @@ $('cards').addEventListener('click',e=>{
   }
 });
 
+/* ===== مميزات: بحث شامل، محفوظات، تقويم، تقارير المالك ===== */
+const pubItems=()=>getDB().filter(i=>!i.publishAt||+i.publishAt<=Date.now());
+function openGlobalSearch(){
+  tool('<h3>🔍 بحث في كل الملفات</h3><input id="gsQ" class="form-input" placeholder="اكتب اسم ملف أو مادة أو دكتور..." autocomplete="off"><div id="gsRes" style="margin-top:10px"></div>');
+  $('gsQ').addEventListener('input',gsRun);gsRun();$('gsQ').focus();
+}
+function gsRun(){
+  const q=norm($('gsQ').value.trim());
+  if(q.length<2){$('gsRes').innerHTML='<p style="color:#888;font-size:13px">اكتب حرفين على الأقل.</p>';return}
+  const a=pubItems().filter(i=>norm(i.title+' '+i.subject+' '+(i.tags||'')+' '+(i.doctor||'')).includes(q)).slice(0,30);
+  $('gsRes').innerHTML=a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)}${m.dept&&m.dept!=='مشترك'?' • '+esc(m.dept):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${m.id}')">📂 مكانه</button></div></div>`).join(''):'<p>مفيش نتايج.</p>';
+}
+function goToItem(id){
+  const m=getDB().find(x=>x.id===id);if(!m)return;
+  userPath={track:m.track,dept:m.dept,level:m.level};openSubs.add(m.subject);closeModal('toolModal');
+  switchMainView('studentFlow');showResults(m.semester);
+}
+function toggleSaved(id){
+  const a=ld('fci_saved',[]),i=a.indexOf(id);if(i>-1)a.splice(i,1);else a.push(id);
+  sv('fci_saved',a);render();toast(i>-1?'اتشالت من المحفوظات':'اتحفظت 🔖');
+}
+function openSaved(){
+  const db=getDB(),a=ld('fci_saved',[]).map(id=>db.find(x=>x.id===id)).filter(Boolean);
+  tool(`<h3>🔖 المحفوظات</h3>${a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${m.id}')">📂</button><button class="btn btn-danger sm" onclick="toggleSaved('${m.id}');openSaved()">✕</button></div></div>`).join(''):'<p>لسه ما حفظتش حاجة. اضغط 🔖 جنب أي ملف.</p>'}`);
+}
+function icsEsc(t){return String(t).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n')}
+function exportIcs(){
+  const ev=[],p=userPath;
+  EVENTS.forEach(e=>{if(/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&evDays(e.date)>=-1)ev.push({t:e.title+(e.subject?' - '+e.subject:''),d:e.date,id:'ev'+e.id})});
+  pubItems().filter(i=>i.type==='تكليفات'&&/^\d{4}-\d{2}-\d{2}$/.test(i.deadline||'')&&evDays(i.deadline)>=-1&&(!p.level||(i.level===p.level&&i.track===p.track))).forEach(i=>ev.push({t:'تسليم: '+i.title+' - '+i.subject,d:i.deadline,id:'as'+i.id}));
+  if(!ev.length)return toast('مفيش مواعيد لتصديرها',1);
+  const nx=d=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+1);return x.getFullYear()+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0')};
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FCI-Materials//AR','CALSCALE:GREGORIAN'];
+  ev.forEach(e=>L.push('BEGIN:VEVENT','UID:'+e.id+'@fci-materials','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z','DTSTART;VALUE=DATE:'+e.d.replace(/-/g,''),'DTEND;VALUE=DATE:'+nx(e.d),'SUMMARY:'+icsEsc(e.t),'BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(e.t),'END:VALARM','END:VEVENT'));
+  L.push('END:VCALENDAR');
+  const b=new Blob([L.join('\r\n')],{type:'text/calendar;charset=utf-8'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='fci-calendar.ics';a.click();URL.revokeObjectURL(a.href);
+  toast('نزل ملف التقويم، افتحه وأضفه لتقويم جوجل أو آبل 📆');
+}
+function openGaps(){
+  const db=getDB(),subs={};
+  db.forEach(i=>{const k=[i.track,i.dept,i.level,i.semester,i.subject].join('|'),o=subs[k]=subs[k]||{i,t:{}};o.t[i.type]=(o.t[i.type]||0)+1});
+  const lack=[];
+  Object.keys(subs).forEach(k=>{const o=subs[k],miss=['محاضرات','ملخصات','امتحانات سابقة'].filter(t=>!o.t[t]);if(miss.length)lack.push({i:o.i,miss})});
+  const has=(tr,lv,sm,dp)=>db.some(i=>i.track===tr&&i.level===lv&&i.semester===sm&&(!dp||i.dept===dp)),empty=[];
+  ['الفصل الأول','الفصل الثاني'].forEach(sm=>LEVELS.forEach(lv=>{
+    if(!has('عام',lv,sm))empty.push('الأقسام العامة • '+lv+' • '+sm);
+    DEPT_SPC.forEach(dp=>{if(!has('خاص',lv,sm,dp))empty.push(dp+' • '+lv+' • '+sm)});
+  }));
+  const old=db.filter(i=>!(i.views||0)&&!(i.downloads||0)&&Date.now()-i.timestamp>30*864e5);
+  tool(`<h3>🕳 المحتوى الناقص</h3><h4>مسارات فاضية (${empty.length})</h4>${empty.length?'<div style="font-size:13px;line-height:1.8">'+empty.slice(0,30).map(x=>'• '+esc(x)).join('<br>')+(empty.length>30?'<br>…':'')+'</div>':'<p>كل المسارات فيها ملفات ✅</p>'}<h4>مواد ناقصها (${lack.length})</h4>${lack.slice(0,25).map(x=>`<div class="ev"><div><b>${esc(x.i.subject)}</b><br><small>${esc(x.i.level)} • ${esc(x.i.dept)} • ناقص: ${x.miss.join('، ')}</small></div></div>`).join('')||'<p>—</p>'}<h4>ملفات ماحدش فتحها من 30 يوم (${old.length})</h4>${old.slice(0,10).map(itemRow).join('')||'<p>—</p>'}`);
+}
+function openShareMsg(){
+  const base=location.origin+location.pathname,day=864e5,now=Date.now(),by={};
+  const nw=pubItems().filter(i=>now-i.timestamp<7*day);
+  nw.forEach(i=>{const k=[i.track,i.dept,i.level,i.semester,i.subject].join('|');(by[k]=by[k]||[]).push(i)});
+  let t='📚 *جديد على FCI-Materials (آخر 7 أيام)*\n';
+  Object.keys(by).forEach(k=>{
+    const a=by[k],f=a[0];
+    t+='\n▪️ *'+f.subject+'* — '+f.level+(f.dept&&f.dept!=='مشترك'?' • '+f.dept:'')+'\n';
+    a.slice(0,8).forEach(i=>{t+='   • '+i.title+' ('+i.type+')\n'});
+    if(a.length>8)t+='   … و'+(a.length-8)+' كمان\n';
+    t+='   🔗 '+base+'#go='+encodeURIComponent([f.track,f.dept,f.level,f.semester,f.subject].join('|'))+'\n';
+  });
+  if(!nw.length)t+='\nمفيش ملفات جديدة الأسبوع ده.\n';
+  const up=EVENTS.filter(e=>{const k=evDays(e.date);return k>=0&&k<=10}).sort((x,y)=>x.date.localeCompare(y.date));
+  if(up.length){t+='\n⏰ *مواعيد قريبة:*\n';up.forEach(e=>{t+='• '+e.title+(e.subject?' ('+e.subject+')':'')+' — '+e.date+'\n'})}
+  tool(`<h3>📣 رسالة جاهزة للجروب</h3><p style="font-size:12px;margin:0 0 8px">انسخها وابعتها في واتساب أو تليجرام، وعدّل عليها لو حبيت.</p><textarea id="smTxt" class="form-input" style="min-height:260px">${esc(t)}</textarea><button class="btn" style="width:100%;margin-top:8px" onclick="copyText($('smTxt').value)">📋 نسخ الرسالة</button>`);
+}
+function exportCsv(){
+  const cols=[['title','العنوان'],['subject','المادة'],['type','النوع'],['week','الأسبوع'],['track','النظام'],['dept','القسم'],['level','الفرقة'],['semester','الفصل'],['doctor','الدكتور'],['tags','الوسوم'],['viewLink','الرابط'],['views','مشاهدات'],['downloads','تحميلات'],['likes','إعجابات'],['by','نشره'],['dateAdded','تاريخ الإضافة']];
+  const q=v=>{let t=String(v==null?'':v);if(/^[=+\-@]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};
+  const csv='\uFEFF'+[cols.map(c=>q(c[1])).join(',')].concat(getDB().map(i=>cols.map(c=>q(i[c[0]])).join(','))).join('\r\n');
+  const b=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='fci-files-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);
+  toast('تم تنزيل الملف، افتحه بـ Excel');
+}
 /* ===== الإشعارات ===== */
 function renderNotif(){
   const seen=ld('fci_seen',0),items=getDB().filter(i=>!i.publishAt||+i.publishAt<=Date.now()).sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
@@ -1580,7 +1663,7 @@ function openMenu(){
     ['🧮','حاسبة المعدل التراكمي والدرجات','closeModal(\'toolModal\');switchMainView(\'gpaView\')'],
     ['⏱️','إدارة التسليمات ومؤقت المذاكرة','closeModal(\'toolModal\');switchMainView(\'studyView\')'],
     ['🧠','خطة الـ 144 ساعة ودليل الكلية','closeModal(\'toolModal\');switchMainView(\'aiGuideView\')'],
-    ['💬','طلب مادة / اقتراح للإدارة','openReq()'],
+    ['🔍','بحث في كل الملفات','openGlobalSearch()'],['🔖','المحفوظات','openSaved()'],['📆','تصدير المواعيد للتقويم','exportIcs()'],['💬','طلب مادة / اقتراح للإدارة','openReq()'],
     ['📲','تثبيت التطبيق على الهاتف','openInstall()']
   ].concat(isAdmin?[
     ['📈','إحصائيات الموقع','openDash()'],
@@ -1605,7 +1688,7 @@ function evBanner(){
 }
 function openEvents(){
   const a=EVENTS.filter(e=>evDays(e.date)>=-14).sort((x,y)=>x.date.localeCompare(y.date));
-  tool(`<h3>📅 المواعيد المهمة</h3>${a.length?a.map(e=>`<div class="ev"><div><b>${esc(e.title)}</b><br><small>${esc(e.subject||'')} • ${esc(e.date)}</small></div><div>${evBadge(e.date)}${isAdmin?` <button class="btn btn-danger sm" data-ev="${esc(e.id)}">🗑️</button>`:''}</div></div>`).join(''):'<p>لا توجد مواعيد حالياً.</p>'}${isAdmin?`<hr><input id="evT" class="form-input" placeholder="العنوان (ميدتيرم، تسليم...)"><input id="evS" class="form-input" style="margin-top:8px" placeholder="المادة"><input id="evD" type="date" class="form-input" style="margin-top:8px"><button class="btn" style="width:100%;margin-top:8px" onclick="addEvent()">➕ إضافة موعد</button>`:''}`);
+  tool(`<h3>📅 المواعيد المهمة</h3><button class="btn sm" style="margin-bottom:8px" onclick="exportIcs()">📆 إضافة للتقويم</button>${a.length?a.map(e=>`<div class="ev"><div><b>${esc(e.title)}</b><br><small>${esc(e.subject||'')} • ${esc(e.date)}</small></div><div>${evBadge(e.date)}${isAdmin?` <button class="btn btn-danger sm" data-ev="${esc(e.id)}">🗑️</button>`:''}</div></div>`).join(''):'<p>لا توجد مواعيد حالياً.</p>'}${isAdmin?`<hr><input id="evT" class="form-input" placeholder="العنوان (ميدتيرم، تسليم...)"><input id="evS" class="form-input" style="margin-top:8px" placeholder="المادة"><input id="evD" type="date" class="form-input" style="margin-top:8px"><button class="btn" style="width:100%;margin-top:8px" onclick="addEvent()">➕ إضافة موعد</button>`:''}`);
 }
 function addEvent(){
   const title=$('evT').value.trim(),date=$('evD').value,subject=$('evS').value.trim();
