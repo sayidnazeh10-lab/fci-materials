@@ -174,6 +174,8 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
   .sym{display:none}
 }
 .save-btn{color:#c0392b;background:rgba(192,57,43,.1)}.save-btn.on{background:#c0392b;color:#fff}
+.tile b{font-size:22px}
+.frow .afck{width:18px;height:18px}
 </style>
 </head>
 <body>
@@ -597,10 +599,12 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <div class="stat-card"><div class="ic">📝</div><div id="statExams" class="stat-num">0</div><small>امتحانات</small></div>
       <div class="stat-card"><div class="ic">👁</div><div id="statViews" class="stat-num">0</div><small>مشاهدات / تحميلات</small></div>
     </div>
+    <div id="attention" class="acard"></div>
     <div id="reportsSection" class="reports-container"><h3 style="margin-top:0">⚠️ روابط مُبلغ عنها</h3><div id="reportsList"></div></div>
     <div class="acard">
       <h4>📢 إعلان للطلاب</h4>
-      <div class="row"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
+      <div class="row"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><input type="date" id="announceUntil" class="form-input" style="max-width:170px" title="تاريخ انتهاء الإعلان (اختياري)">
+      <button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
     </div>
     <h4>اختصارات الإدارة</h4>
     <div class="agrid">
@@ -614,6 +618,9 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <button class="tile" onclick="openGaps()"><span>🕳</span>المحتوى الناقص</button>
       <button class="tile" onclick="openShareMsg()"><span>📣</span>رسالة جاهزة للجروب</button>
       <button class="tile" onclick="exportCsv()"><span>📤</span>تصدير CSV</button>
+      <button class="tile" onclick="openSubjects()"><span>📚</span>إدارة المواد</button>
+      <button class="tile" onclick="openComments()"><span>💬</span>التعليقات</button>
+      <button class="tile owner-only" onclick="openAdmins()"><span>👥</span>الأدمنز</button>
     </div>
   </div>
 
@@ -664,7 +671,17 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <input type="search" id="afSearch" class="form-input" placeholder="🔍 ابحث بالعنوان أو المادة أو الدكتور..." aria-label="بحث في الملفات">
       <select id="afSub" class="form-select" style="max-width:200px" aria-label="المادة"></select>
     </div>
-    <p style="margin:8px 0;font-size:13px;color:#888"><span id="afCount"></span> • الأحدث أولاً</p>
+    <p style="margin:8px 0;font-size:13px;color:#888"><label style="margin-left:10px"><input type="checkbox" id="afAll"> تحديد الكل</label><span id="afCount"></span> • الأحدث أولاً</p>
+    <div id="afBar" class="acard" style="display:none;position:sticky;top:0;z-index:5">
+      <b id="afSel"></b>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm" onclick="bulkMove()">📦 نقل/تعديل</button>
+        <button class="btn sm" onclick="bulkHide('1')">🙈 إخفاء</button>
+        <button class="btn sm" onclick="bulkHide('')">👁 إظهار</button>
+        <button class="btn btn-danger sm" onclick="bulkDelete()">🗑️ حذف</button>
+        <button class="btn btn-warning sm" onclick="bulkClear()">إلغاء التحديد</button>
+      </div>
+    </div>
     <div id="afList"></div>
     <button id="afMore" class="btn" style="width:100%;margin-top:10px;display:none">عرض المزيد</button>
   </div>
@@ -1428,7 +1445,7 @@ $('typeFilter').addEventListener('change',e=>{TF=e.target.value;render()});
 function render(){
   const saved={};document.querySelectorAll('#cards input').forEach(i=>saved[i.id]=i.value);
   const p=userPath,unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1,notes=ld('fci_notes',{});
-  const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&(isAdmin||!i.publishAt||+i.publishAt<=Date.now()));
+  const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now()))));
   const soon=all.filter(i=>{if(i.type!=='تكليفات'||!i.deadline||done.includes(i.id))return false;const e=new Date(i.deadline+'T23:59:59'),n=new Date();return e>=n&&e-n<7*864e5});
   $('upcoming').innerHTML=evBanner()+(soon.length?`<div class="upcoming"><strong>⏰ تكليفات قريبة:</strong>${soon.map(i=>`<div>• ${esc(i.subject)} - ${esc(i.title)} ${dlBadge(i.deadline)}</div>`).join('')}</div>`:'');
   let db=all;
@@ -1501,7 +1518,7 @@ async function refresh(manual){
 async function act(a,d,msg){try{const j=await api(a,d);apply(j);if(j.msg||msg)toast(j.msg||msg);return true}catch(e){toast(e.message||'خطأ في الاتصال',1);return false}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 function loadAnnouncement(){const b=$('globalAnnouncement');if(ANN){b.textContent='📢 '+ANN;b.style.display='block'}else b.style.display='none'}
-function saveAnnouncement(){act('ann',{text:$('announceInput').value.trim()},'تم النشر')}
+function saveAnnouncement(){act('ann',{text:$('announceInput').value.trim(),until:$('announceUntil').value},'تم النشر')}
 function clearAnnouncement(){act('ann',{text:''},'تم الحذف')}
 async function checkLogin(){
   const p=$('adminPassword').value;if(!p)return;PASS=p;
@@ -1563,7 +1580,7 @@ $('cards').addEventListener('click',e=>{
 });
 
 /* ===== مميزات: بحث شامل، محفوظات، تقويم، تقارير المالك ===== */
-const pubItems=()=>getDB().filter(i=>!i.publishAt||+i.publishAt<=Date.now());
+const pubItems=()=>getDB().filter(i=>(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now())));
 function openGlobalSearch(){
   tool('<h3>🔍 بحث في كل الملفات</h3><input id="gsQ" class="form-input" placeholder="اكتب اسم ملف أو مادة أو دكتور..." autocomplete="off"><div id="gsRes" style="margin-top:10px"></div>');
   $('gsQ').addEventListener('input',gsRun);gsRun();$('gsQ').focus();
@@ -1639,9 +1656,60 @@ function exportCsv(){
   a.href=URL.createObjectURL(b);a.download='fci-files-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href);
   toast('تم تنزيل الملف، افتحه بـ Excel');
 }
+/* ===== ترقية لوحة الأدمن ===== */
+function selIds(){return Object.keys(AF.sel).filter(k=>AF.sel[k])}
+function updateBar(){const n=selIds().length;$('afBar').style.display=n?'block':'none';$('afSel').textContent='✔ اتحدد '+n+' ملف'}
+function bulkClear(){AF.sel={};$('afAll').checked=false;renderAdminFiles();updateBar()}
+$('afList').addEventListener('change',e=>{const c=e.target.closest('.afck');if(!c)return;AF.sel[c.dataset.id]=c.checked;updateBar()});
+$('afAll').addEventListener('change',e=>{document.querySelectorAll('#afList .afck').forEach(c=>{c.checked=e.target.checked;AF.sel[c.dataset.id]=e.target.checked});updateBar()});
+async function bulkHide(v){const ids=selIds();if(!ids.length)return;if(await act('bulkedit',{ids,fields:{hidden:v}}))bulkClear()}
+async function bulkDelete(){const ids=selIds();if(!ids.length||!confirm('نقل '+ids.length+' ملف لسلة المحذوفات؟ (تقدر ترجّعهم خلال 30 يوم)'))return;if(await act('bulkdel',{ids}))bulkClear()}
+function bulkMove(){
+  const o=(a,id)=>`<select id="${id}" class="form-select"><option value="">— بدون تغيير —</option>${opts(a)}</select>`;
+  tool(`<h3>📦 نقل/تعديل ${selIds().length} ملف</h3><p style="font-size:12px;margin:0 0 8px">اختار بس اللي عايز تغيّره، والباقي بيفضل زي ما هو.</p><div class="form-group"><label>النظام</label>${o(['عام','خاص'],'bmT')}</div><div class="form-group"><label>القسم</label>${o(['مشترك'].concat(DEPTS),'bmD')}</div><div class="form-group"><label>الفرقة</label>${o(LEVELS,'bmL')}</div><div class="form-group"><label>الفصل</label>${o(['الفصل الأول','الفصل الثاني'],'bmS')}</div><div class="form-group"><label>الأسبوع</label>${o(WEEKS,'bmW')}</div><div class="form-group"><label>النوع</label>${o(TYPES,'bmY')}</div><button class="btn" style="width:100%" onclick="bulkMoveGo()">تطبيق</button>`);
+}
+async function bulkMoveGo(){
+  const f={};[['bmT','track'],['bmD','dept'],['bmL','level'],['bmS','semester'],['bmW','week'],['bmY','type']].forEach(x=>{const v=$(x[0]).value;if(v)f[x[1]]=v});
+  if(!Object.keys(f).length)return toast('اختار حاجة تتغيّر',1);
+  if(await act('bulkedit',{ids:selIds(),fields:f})){closeModal('toolModal');bulkClear()}
+}
+async function loadAttention(){
+  const box=$('attention');if(!box)return;
+  const db=getDB(),sch=db.filter(i=>i.publishAt&&+i.publishAt>Date.now()).length,hid=db.filter(i=>i.hidden).length,rep=getReps().length;
+  let req=null,hl=null;
+  try{req=(await api('reqlist')).requests.filter(r=>r.status==='جديد').length}catch(e){}
+  try{hl=(await api('healthlist')).health.length}catch(e){}
+  const c=(n,ic,t,fn)=>`<button class="tile" onclick="${fn}"><span>${ic}</span><b>${n==null?'؟':n}</b>${t}</button>`;
+  box.innerHTML='<h4>🔔 محتاج انتباهك</h4><div class="agrid">'+c(req,'📥','طلبات جديدة','openReqList()')+c(rep,'⚠️','بلاغات',"adminTab('home')")+c(hl,'🩺','روابط فيها مشاكل','openHealth()')+c(sch,'⏳','ملفات مجدولة',"adminTab('files')")+c(hid,'🙈','ملفات مخفية',"adminTab('files')")+'</div>';
+}
+let SUBS=[];
+function openSubjects(){
+  const g={};
+  getDB().forEach(i=>{const k=[i.track,i.dept,i.level,i.semester,i.subject].join('|'),o=g[k]=g[k]||{i,ids:[],doc:''};o.ids.push(i.id);if(i.doctor)o.doc=i.doctor});
+  SUBS=Object.keys(g).map(k=>g[k]).sort((a,b)=>String(a.i.level).localeCompare(String(b.i.level),'ar')||String(a.i.subject).localeCompare(String(b.i.subject),'ar'));
+  tool(`<h3>📚 إدارة المواد</h3><p style="font-size:12px;margin:0 0 8px">غيّر اسم مادة في كل ملفاتها بضغطة، أو اكتب اسم الدكتور لكل الملفات. لو كتبت اسم مادة موجودة في نفس المسار هتتدمج معاها.</p>${SUBS.map((o,n)=>`<div class="ev"><div><b>${esc(o.i.subject)}</b> <small>(${o.ids.length} ملف)</small><br><small>${esc(o.i.level)} • ${esc(o.i.dept)} • ${esc(o.i.semester)}${o.doc?' • 👨‍🏫 '+esc(o.doc):''}</small></div><div class="action-links"><button class="btn sm" onclick="subRename(${n})">✏️ الاسم</button><button class="btn sm" onclick="subDoctor(${n})" aria-label="الدكتور">👨‍🏫</button></div></div>`).join('')||'<p>مفيش مواد.</p>'}`);
+}
+async function subRename(n){const o=SUBS[n],v=prompt('الاسم الجديد للمادة:',o.i.subject);if(v===null||!v.trim()||v.trim()===o.i.subject)return;if(await act('bulkedit',{ids:o.ids,fields:{subject:v.trim()}}))openSubjects()}
+async function subDoctor(n){const o=SUBS[n],v=prompt('اسم الدكتور لكل ملفات المادة:',o.doc);if(v===null)return;if(await act('bulkedit',{ids:o.ids,fields:{doctor:v.trim()}}))openSubjects()}
+function openComments(){
+  const rows=[];
+  getDB().forEach(i=>(i.comments||[]).forEach((c,n)=>rows.push({i,n,c:typeof c==='string'?{n:'طالب',t:c}:c})));
+  const a=rows.sort((x,y)=>y.i.timestamp-x.i.timestamp).slice(0,60);
+  tool(`<h3>💬 التعليقات (${rows.length})</h3>${a.length?a.map(r=>`<div class="ev" style="align-items:flex-start"><div><b>${esc(r.c.n)}</b>: ${esc(r.c.t)}<br><small>على: ${esc(r.i.title)} (${esc(r.i.subject)})</small></div><button class="btn btn-danger sm" data-dc="${esc(r.i.id)}|${r.n}" aria-label="مسح">🗑️</button></div>`).join(''):'<p>مفيش تعليقات.</p>'}`);
+}
+let ADMS=[];
+async function openAdmins(){
+  try{
+    const j=await api('adminlist');ADMS=j.admins;
+    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (4 حروف على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
+  }catch(e){toast(e.message||'خطأ',1)}
+}
+function adminEdit(n){const a=ADMS[n];$('admN').value=a.name;$('admP').value='';$('admP').placeholder='سيب الباسورد فاضي لو مش هتغيّره';$('admR').value=a.role;$('admS').value=a.scope;$('admFormT').textContent='✏️ تعديل: '+a.name}
+async function adminSave(){if(await act('adminsave',{name:$('admN').value,password:$('admP').value,role:$('admR').value,scope:$('admS').value}))openAdmins()}
+async function adminDel(n){const a=ADMS[n];if(confirm('حذف الأدمن «'+a.name+'»؟')&&await act('admindel',{name:a.name}))openAdmins()}
 /* ===== الإشعارات ===== */
 function renderNotif(){
-  const seen=ld('fci_seen',0),items=getDB().filter(i=>!i.publishAt||+i.publishAt<=Date.now()).sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
+  const seen=ld('fci_seen',0),items=getDB().filter(i=>(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now()))).sort((a,b)=>b.timestamp-a.timestamp).slice(0,5);
   $('notifDot').style.display=items.some(i=>i.timestamp>seen)?'block':'none';
   $('notifList').innerHTML=items.length?items.map(i=>`<div class="notif-item">${i.timestamp>seen?'🆕 ':''}${esc(i.title)} <small>(${esc(i.subject)})</small></div>`).join(''):'لا جديد.';
 }
@@ -1672,7 +1740,9 @@ function openMenu(){
   ]:[]).map(x=>`<button class="menu-btn" onclick="${x[2]}"><span>${x[0]}</span>${x[1]}</button>`).join('')}</div>`);
 }
 $('toolBody').addEventListener('click',async e=>{
-  const ev=e.target.closest('[data-ev]'),rq=e.target.closest('[data-rq]'),cd=e.target.closest('[data-cd]'),rs=e.target.closest('[data-rs]');
+  const ev=e.target.closest('[data-ev]'),rq=e.target.closest('[data-rq]'),cd=e.target.closest('[data-cd]'),rs=e.target.closest('[data-rs]'),dc=e.target.closest('[data-dc]'),rst=e.target.closest('[data-rst]');
+  if(dc&&confirm('مسح التعليق؟')){const k=dc.dataset.dc.split('|');act('delc',{id:k[0],i:+k[1]}).then(ok=>ok&&openComments())}
+  if(rst){const k=rst.dataset.rst.split('|');api('reqstatus',{id:k[0],status:k[1]}).then(()=>openReqList()).catch(x=>toast(x.message||'خطأ',1))}
   if(rs)act('restore',{id:rs.dataset.rs},'تم الاسترجاع ✅').then(ok=>ok&&openTrash());
   if(ev&&(await askConfirm('حذف الموعد؟')))act('evdel',{id:ev.dataset.ev}).then(ok=>ok&&openEvents());
   if(rq&&(await askConfirm('حذف هذا الطلب؟')))api('reqdel',{id:rq.dataset.rq}).then(()=>openReqList()).catch(x=>toast(x.message,1));
@@ -1703,7 +1773,10 @@ async function sendReq(){
   try{await api('request',{type:$('rqT').value,name:$('rqN').value.trim(),text});toast('وصلت للإدارة، شكراً 🙏');closeModal('toolModal')}catch(e){toast(e.message||'خطأ',1)}
 }
 async function openReqList(){
-  try{const j=await api('reqlist');tool(`<h3>📥 الطلبات</h3>${j.requests.length?j.requests.map(r=>`<div class="ev"><div><b>${esc(r.type)}</b> <small>${esc(r.name||'مجهول')} • ${esc(r.date)}</small><br>${esc(r.text)}</div><button class="btn btn-danger sm" data-rq="${esc(r.id)}">🗑️</button></div>`).join(''):'<p>لا توجد طلبات.</p>'}`)}catch(e){toast(e.message||'خطأ',1)}
+  try{
+    const j=await api('reqlist'),col={'جديد':'#e74c3c','قيد التنفيذ':'#f39c12','تم':'#27ae60'};
+    tool(`<h3>📥 الطلبات (${j.requests.filter(r=>r.status==='جديد').length} جديد)</h3>${j.requests.length?j.requests.map(r=>`<div class="ev" style="align-items:flex-start"><div><span class="countdown-badge" style="background:${col[r.status]||'#888'}">${esc(r.status)}</span> <b>${esc(r.type)}</b> <small>${esc(r.name||'مجهول')} • ${esc(r.date)}</small><br>${esc(r.text)}</div><div class="action-links" style="flex-direction:column"><button class="btn sm" data-rst="${esc(r.id)}|قيد التنفيذ" aria-label="قيد التنفيذ">⏳</button><button class="btn sm" data-rst="${esc(r.id)}|تم" aria-label="تم">✅</button><button class="btn btn-danger sm" data-rq="${esc(r.id)}" aria-label="حذف">🗑️</button></div></div>`).join(''):'<p>لا توجد طلبات.</p>'}`);
+  }catch(e){toast(e.message||'خطأ',1)}
 }
 
 /* تثبيت التطبيق */
@@ -1787,11 +1860,11 @@ function doCopy(id){
 }
 
 /* تبويبات لوحة الأدمن */
-const AF={q:'',s:'',n:50,k:''};
+const AF={q:'',s:'',n:50,k:'',sel:{}};
 function adminTab(t){
   document.querySelectorAll('.apanel').forEach(x=>x.hidden=x.id!=='ap-'+t);
   document.querySelectorAll('.atab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
-  if(t==='home'){updateStats();renderReports()}
+  if(t==='home'){updateStats();renderReports();loadAttention()}
   if(t==='files')renderAdminFiles();
 }
 function renderAdminFiles(){
@@ -1803,7 +1876,7 @@ function renderAdminFiles(){
   $('afCount').textContent=all.length+' ملف';
   $('afList').innerHTML=l.length?l.map(m=>{
     const can=OWNER||m.by===ME,sch=m.publishAt&&+m.publishAt>Date.now();
-    return `<div class="frow"><div class="finfo"><b>${esc(m.title)}</b>${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0} 👍${m.likes||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${m.id}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${m.id}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${m.id}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
+    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${m.id}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0} 👍${m.likes||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${m.id}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${m.id}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${m.id}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
   }).join(''):'<p style="text-align:center">لا توجد ملفات.</p>';
   $('afMore').style.display=all.length>AF.n?'block':'none';
 }
