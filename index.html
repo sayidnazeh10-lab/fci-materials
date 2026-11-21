@@ -75,7 +75,6 @@ body.dark-mode .category-title{color:#38bdf8}
 .download-btn{color:var(--success-color);background:rgba(39,174,96,.12)}
 .share-btn{color:#8e44ad;background:rgba(142,68,173,.12)}
 .report-btn{color:#d35400;background:rgba(211,84,0,.12)}
-.like-btn{color:#e67e22;background:rgba(230,126,34,.12)}.like-btn.liked{background:#e67e22;color:#fff}
 .done-btn{color:var(--success-color);background:rgba(39,174,96,.12)}.done-btn.on{background:var(--success-color);color:#fff}
 .note-btn{color:#16a085;background:rgba(22,160,133,.12)}.note-btn.on{background:#16a085;color:#fff}
 .edit-btn{color:#f39c12;background:rgba(243,156,18,.12)}.delete-btn{color:var(--danger-color);background:rgba(231,76,60,.12)}
@@ -208,7 +207,6 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <button type="button" class="mnav-btn" data-main-tab="scheduleView" onclick="switchMainView('scheduleView')">🗓 الجدول والغياب</button>
       <button type="button" class="mnav-btn" data-main-tab="gpaView" onclick="switchMainView('gpaView')">🧮 حاسبة GPA والدرجات</button>
       <button type="button" class="mnav-btn" data-main-tab="studyView" onclick="switchMainView('studyView')">⏱️ التسليمات والمذاكرة</button>
-      <button type="button" class="mnav-btn" data-main-tab="aiGuideView" onclick="switchMainView('aiGuideView')">🧠 خطة الـ 144 ساعة ودليل الكلية</button>
     </nav>
   </div>
 </header>
@@ -487,89 +485,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
 </section>
 
 <!-- ==================== 5. AI 144-HOUR PLAN & FACULTY GUIDE ==================== -->
-<section id="aiGuideView" class="drawer-label" hidden>
-  <div class="chosen-level-bar">
-    <span>🧠 خطة الـ 144 ساعة (برنامج الذكاء الاصطناعي) • خارطة المهارات • دليل الكلية</span>
-    <span id="planHoursBadge" class="tag"></span>
-  </div>
 
-  <!-- Progress Bar & Science-Bio Notice -->
-  <div class="acard">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-      <strong>التقدم في الساعات المعتمدة للتخرج (144 ساعة معتمدة)</strong>
-      <span id="planProgressText" style="font-weight:800;color:var(--accent-color)"></span>
-    </div>
-    <div class="pbar" style="height:10px"><i id="planProgressBar" style="width:25%"></i></div>
-    <p style="font-size:12px;color:#888;margin:6px 0 0">💡 <b>تنبيه لائحة كلية الحاسبات والمعلومات بجامعة أسيوط:</b> يُشترط لطلاب شعبة <b>علمي علوم</b> اجتياز مقرر تكميلي مقابل لمادة <b>رياضيات (2)</b> المقررة على علمي رياضة (خارج المعدل التراكمي CGPA).</p>
-    <p style="font-size:12px;color:#888;margin:6px 0 0">⚠️ مقررات الخطة والمسارات والمهارات هنا <b>استرشادية للتخطيط الشخصي</b> وليست الخطة الرسمية للكلية، عدّلها حسب لائحة برنامجك.</p>
-  </div>
-
-  <!-- 8 AI Specializations -->
-  <div class="acard">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-      <div>
-        <h3 style="margin:0">🎯 مسارات الذكاء الاصطناعي (تصنيف استرشادي)</h3>
-        <small style="color:#888">اضغط على أي مسار لتصفية مقرراته الدراسية بالأسفل</small>
-      </div>
-      <button type="button" class="pill-btn" onclick="setAiTrackFilter('all')">عرض كل المسارات</button>
-    </div>
-    <div id="ai8TracksContainer" class="agrid"></div>
-  </div>
-
-  <!-- Curriculum Courses Grid -->
-  <div class="acard">
-    <div class="filters" style="margin-top:0;margin-bottom:12px">
-      <input type="search" id="currSearchIn" class="form-input" placeholder="🔍 ابحث باسم المقرر أو الكود (مثل AI201)..." oninput="renderAiGuideHub()">
-      <select id="currLevelFilter" class="form-select" style="max-width:170px" onchange="renderAiGuideHub()">
-        <option value="all">كل المستويات (1-4)</option>
-        <option value="1">المستوى الأول</option>
-        <option value="2">المستوى الثاني</option>
-        <option value="3">المستوى الثالث</option>
-        <option value="4">المستوى الرابع</option>
-      </select>
-      <select id="currStatusFilter" class="form-select" style="max-width:170px" onchange="renderAiGuideHub()">
-        <option value="all">كل الحالات</option>
-        <option value="completed">مجتاز ✅</option>
-        <option value="in_progress">مسجل حالياً 📖</option>
-        <option value="planned">متبقي بالخطة ⏳</option>
-      </select>
-    </div>
-
-    <form id="addPlanCourseForm" class="form-grid" style="margin-bottom:12px;background:var(--card-bg);padding:10px;border-radius:10px;border:1px solid var(--border-col)">
-      <input type="text" id="newPlanCode" class="form-input" required placeholder="كود المقرر (مثل AI304)">
-      <input type="text" id="newPlanTitle" class="form-input" required placeholder="اسم المقرر">
-      <select id="newPlanLevel" class="form-select">
-        <option value="1">المستوى الأول (3 ساعات)</option>
-        <option value="2">المستوى الثاني (3 ساعات)</option>
-        <option value="3">المستوى الثالث (3 ساعات)</option>
-        <option value="4">المستوى الرابع (3 ساعات)</option>
-      </select>
-      <button type="submit" class="btn">➕ إضافة للخطة</button>
-    </form>
-
-    <div id="curriculumGridBox" class="three-col"></div>
-  </div>
-
-  <!-- Skills Roadmap & Official Faculty Directory -->
-  <div class="two-col">
-    <div class="acard" style="margin-bottom:0">
-      <h3>🚀 خارطة المهارات العملية (AI Career Checklist)</h3>
-      <p style="font-size:12px;color:#888;margin:0 0 10px">علّم على المهارات البرمجية وأدوات الذكاء الاصطناعي التي أتقنتها بجانب دراسة الكلية:</p>
-      <div id="skillsChecklistBox"></div>
-    </div>
-
-    <div class="acard" style="margin-bottom:0">
-      <h3>🏛️ بطاقة تعريف الكلية والروابط الرسمية</h3>
-      <p style="font-size:13px;color:#888;margin:6px 0">أسماء القيادات وبيانات التواصل بتتغيّر، فراجعها من موقع الكلية الرسمي.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-        <a href="https://www.aun.edu.eg/fci/ar" target="_blank" rel="noopener noreferrer" class="btn sm" style="text-decoration:none;text-align:center">🌐 موقع الكلية الرسمي</a>
-        <a href="https://www.aun.edu.eg/fci/ar/students_affairs/layhh-albrnamj" target="_blank" rel="noopener noreferrer" class="btn sm" style="text-decoration:none;text-align:center">📜 لائحة برنامج AI</a>
-        <a href="https://aun.edu.eg/main/ar/klyt-alhasbat-walmlwmat-bjamt-asywt-ttrh-brnamj-aldhka-alastnay-bnzam-alsaat-almtmdt-llam-aljamy" target="_blank" rel="noopener noreferrer" class="btn sm" style="text-decoration:none;text-align:center">📰 تفاصيل برنامج AI</a>
-        <a href="https://www.aun.edu.eg/fci/ar/students_affairs/Students%20Academic%20Programs" target="_blank" rel="noopener noreferrer" class="btn sm" style="text-decoration:none;text-align:center">🎓 البرامج الأكاديمية</a>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ==================== 6. ADMIN LOGIN & DASHBOARD ==================== -->
 <section id="adminLogin" class="drawer-label" hidden>
@@ -585,10 +501,12 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
     <h2 style="margin:0">لوحة التحكم</h2><span id="adminHello" class="tag" style="font-size:14px"></span>
   </div>
   <div class="atabs" role="tablist">
-    <button class="atab on" data-t="home" onclick="adminTab('home')">🏠 الرئيسية <span id="repBadge" class="rbadge"></span></button>
+    <button class="atab on" data-t="home" onclick="adminTab('home')">🏠 الرئيسية</button>
     <button class="atab" data-t="add" onclick="adminTab('add')">➕ إضافة</button>
     <button class="atab" data-t="files" onclick="adminTab('files')">🗂 الملفات</button>
-    <button class="atab" data-t="settings" onclick="adminTab('settings')">⚙️ الإعدادات</button>
+    <button class="atab" data-t="students" onclick="adminTab('students')">👥 الطلاب <span id="repBadge" class="rbadge"></span></button>
+    <button class="atab" data-t="calendar" onclick="adminTab('calendar')">📅 التقويم</button>
+    <button class="atab" data-t="settings" onclick="adminTab('settings')">⚙️ النظام</button>
   </div>
 
   <div id="ap-home" class="apanel">
@@ -600,28 +518,18 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <div class="stat-card"><div class="ic">👁</div><div id="statViews" class="stat-num">0</div><small>مشاهدات / تحميلات</small></div>
     </div>
     <div id="attention" class="acard"></div>
-    <div id="reportsSection" class="reports-container"><h3 style="margin-top:0">⚠️ روابط مُبلغ عنها</h3><div id="reportsList"></div></div>
     <div class="acard">
       <h4>📢 إعلان للطلاب</h4>
       <div class="row"><input type="text" id="announceInput" class="form-input" placeholder="نص الإعلان..."><input type="date" id="announceUntil" class="form-input" style="max-width:170px" title="تاريخ انتهاء الإعلان (اختياري)">
       <button class="btn btn-warning" onclick="saveAnnouncement()">نشر</button><button class="btn btn-danger" onclick="clearAnnouncement()">حذف</button></div>
     </div>
-    <h4>اختصارات الإدارة</h4>
+    <h4>إجراءات سريعة</h4>
     <div class="agrid">
-      <button class="tile" onclick="openEvents()"><span>📅</span>المواعيد</button>
-      <button class="tile" onclick="openManage()"><span>🗓</span>الجدول</button>
-      <button class="tile" onclick="openReqList()"><span>📥</span>طلبات الطلاب</button>
-      <button class="tile" onclick="openDash()"><span>📈</span>إحصائيات</button>
-      <button class="tile" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
-      <button class="tile" onclick="openHealth()"><span>🩺</span>صحة الروابط</button>
-      <button class="tile" onclick="openTrash()"><span>♻️</span>سلة المحذوفات</button>
+      <button class="tile" onclick="adminTab('add')"><span>➕</span>إضافة ملف</button>
+      <button class="tile" onclick="openShareMsg()"><span>📣</span>رسالة للجروب</button>
       <button class="tile" onclick="openGaps()"><span>🕳</span>المحتوى الناقص</button>
-      <button class="tile" onclick="openShareMsg()"><span>📣</span>رسالة جاهزة للجروب</button>
+      <button class="tile" onclick="openDash()"><span>📈</span>إحصائيات</button>
       <button class="tile" onclick="exportCsv()"><span>📤</span>تصدير CSV</button>
-      <button class="tile" onclick="openSubjects()"><span>📚</span>إدارة المواد</button>
-      <button class="tile" onclick="openComments()"><span>💬</span>التعليقات</button>
-      <button class="tile owner-only" onclick="openAdmins()"><span>👥</span>الأدمنز</button>
-      <button class="tile" onclick="openContribs()"><span>📬</span>المساهمات</button>
     </div>
   </div>
 
@@ -668,6 +576,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
   </div>
 
   <div id="ap-files" class="apanel" hidden>
+    <div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="openSubjects()">📚 إدارة المواد (تغيير الاسم والدكتور)</button></div>
     <div class="filters" style="margin-top:0">
       <input type="search" id="afSearch" class="form-input" placeholder="🔍 ابحث بالعنوان أو المادة أو الدكتور..." aria-label="بحث في الملفات">
       <select id="afSub" class="form-select" style="max-width:200px" aria-label="المادة"></select>
@@ -687,7 +596,30 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
     <button id="afMore" class="btn" style="width:100%;margin-top:10px;display:none">عرض المزيد</button>
   </div>
 
+  <div id="ap-students" class="apanel" hidden>
+    <div class="agrid" style="margin-bottom:16px">
+      <button class="tile" onclick="openContribs()"><span>📬</span><b id="cntCtr"></b>مساهمات للمراجعة</button>
+      <button class="tile" onclick="openReqList()"><span>📥</span><b id="cntReq"></b>طلبات جديدة</button>
+      <button class="tile" onclick="openComments()"><span>💬</span><b id="cntCom"></b>تعليقات</button>
+    </div>
+    <div id="reportsSection" class="reports-container"><h3 style="margin-top:0">⚠️ روابط مُبلغ عنها</h3><div id="reportsList"></div></div>
+  </div>
+
+  <div id="ap-calendar" class="apanel" hidden>
+    <div class="agrid">
+      <button class="tile" onclick="openEvents()"><span>📅</span>المواعيد المهمة</button>
+      <button class="tile" onclick="openManage()"><span>🗓</span>جدول المحاضرات</button>
+    </div>
+    <p style="font-size:12px;color:#888;margin-top:12px">المواعيد بتظهر للطلاب في الإشعارات 🔔 وفي مخطط المذاكرة. اكتب اسم المادة مطابق لاسمها في الملفات.</p>
+  </div>
+
   <div id="ap-settings" class="apanel" hidden>
+    <div class="agrid" style="margin-bottom:16px">
+      <button class="tile" onclick="openHealth()"><span>🩺</span>صحة الروابط</button>
+      <button class="tile" onclick="openTrash()"><span>♻️</span>سلة المحذوفات</button>
+      <button class="tile" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
+      <button class="tile owner-only" onclick="openAdmins()"><span>👥</span>الأدمنز</button>
+    </div>
     <div class="acard">
       <h4>💾 النسخ الاحتياطي</h4>
       <p style="font-size:12px;margin:0 0 8px">نزّل نسخة من كل الملفات كل فترة، وتقدر ترجّعها وقت الحاجة.</p>
@@ -828,7 +760,7 @@ $('addType').onchange=()=>{$('addDeadline').style.display=$('addType').value==='
 $('editType').innerHTML=opts(TYPES);$('editTrack').innerHTML=opts(['عام','خاص']);$('editDept').innerHTML=opts(['مشترك'].concat(DEPTS));$('editLevel').innerHTML=opts(LEVELS);$('editSem').innerHTML=opts(['الفصل الأول','الفصل الثاني']);
 
 /* ===== التنقل بين الأقسام الرئيسية الخمسة ===== */
-const ALL_MAIN_SECTIONS=['studentFlow','scheduleView','gpaView','studyView','aiGuideView','adminLogin','adminDashboard'];
+const ALL_MAIN_SECTIONS=['studentFlow','scheduleView','gpaView','studyView','adminLogin','adminDashboard'];
 function switchMainView(viewId){
   ALL_MAIN_SECTIONS.forEach(id=>{if($(id))$(id).hidden=(id!==viewId)});
   document.querySelectorAll('.mnav-btn').forEach(btn=>{
@@ -838,11 +770,10 @@ function switchMainView(viewId){
   if(viewId==='scheduleView')renderScheduleHub();
   if(viewId==='gpaView')renderGpaHub();
   if(viewId==='studyView')renderStudyHub();
-  if(viewId==='aiGuideView')renderAiGuideHub();
   if(viewId==='adminDashboard')adminTab('home');
 }
 function showSection(id){switchMainView(id)}
-function openGPAModal(){switchMainView('gpaView')}
+
 
 /* ===== المسار الدراسي للطالب ===== */
 let userPath=ld('fci_path',{});
@@ -894,61 +825,18 @@ const DEFAULT_ATTENDANCE=[];
 
 const DEFAULT_GPA_COURSES=[];
 
-const AI_8_TRACKS=[
-  {id:'fundamentals',name:'أساسيات الذكاء الاصطناعي',icon:'🧭',desc:'خوارزميات البحث، تمثيل المعرفة، والمنطق الرياضي'},
-  {id:'ml',name:'التعلم الآلي والتعلم العميق',icon:'🤖',desc:'الشبكات العصبية، التعلم بإشراف وبدون إشراف'},
-  {id:'cv',name:'الرؤية بالحاسب',icon:'👁️',desc:'معالجة الصور الرقمية، التعرف على الأنماط والفيديو'},
-  {id:'nlp',name:'معالجة اللغات الطبيعية',icon:'💬',desc:'تحليل النصوص العربية والإنجليزية والنماذج اللغوية'},
-  {id:'robotics',name:'الروبوتات وتطبيقاتها',icon:'🦾',desc:'التحكم الذكي، الحساسات، والأنظمة المدمجة'},
-  {id:'intelligent_sys',name:'النظم الذكية',icon:'⚡',desc:'النظم الخبيرة، الوكلاء الأذكياء، واتخاذ القرار الآلي'},
-  {id:'hci',name:'التفاعل بين الإنسان والحاسب',icon:'🖥️',desc:'تصميم واجهات النظم الذكية وتجربة المستخدم'},
-  {id:'ai_practice',name:'ممارسات AI والبيانات الضخمة',icon:'📊',desc:'تطبيقات الصناعة، الحوسبة السحابية، ومشاريع التخرج'}
-];
 
-const DEFAULT_CURRICULUM=[
-  {code:'CS101',title:'مقدمة في علوم الحاسب والبرمجة الهيكلية (C++)',level:1,hours:3,track:'fundamentals',status:'completed'},
-  {code:'MA101',title:'تفاضل وتكامل ورياضيات متقطعة',level:1,hours:3,track:'fundamentals',status:'completed'},
-  {code:'CS102',title:'البرمجة الشيئية (OOP)',level:1,hours:3,track:'fundamentals',status:'completed'},
-  {code:'ST101',title:'مبادئ الاحتمالات والإحصاء',level:1,hours:3,track:'ai_practice',status:'completed'},
-  {code:'AI201',title:'هياكل متقطعة وخوارزميات البحث',level:2,hours:3,track:'fundamentals',status:'in_progress'},
-  {code:'CS202',title:'تراسل البيانات وشبكات الحاسب',level:2,hours:3,track:'intelligent_sys',status:'in_progress'},
-  {code:'AI203',title:'الإشارات والأنظمة',level:2,hours:3,track:'robotics',status:'in_progress'},
-  {code:'AI204',title:'تمثيل المعرفة والمنطق الذكي',level:2,hours:3,track:'intelligent_sys',status:'planned'},
-  {code:'AI301',title:'التعلم الآلي (Machine Learning)',level:3,hours:3,track:'ml',status:'planned'},
-  {code:'AI302',title:'الشبكات العصبية والتعلم العميق (Deep Learning)',level:3,hours:3,track:'ml',status:'planned'},
-  {code:'AI303',title:'الرؤية بالحاسب ومعالجة الصور (Computer Vision)',level:3,hours:3,track:'cv',status:'planned'},
-  {code:'AI305',title:'معالجة اللغات الطبيعية (NLP)',level:3,hours:3,track:'nlp',status:'planned'},
-  {code:'AI306',title:'مقدمة في الروبوتات والتحكم الذكي',level:3,hours:3,track:'robotics',status:'planned'},
-  {code:'AI401',title:'التفاعل بين الإنسان والحاسب (HCI)',level:4,hours:3,track:'hci',status:'planned'},
-  {code:'AI402',title:'تحليل البيانات الضخمة وتطبيقات AI',level:4,hours:3,track:'ai_practice',status:'planned'},
-  {code:'AI403',title:'النظم الذكية المتقدمة والتعلم المعزز (RL)',level:4,hours:3,track:'intelligent_sys',status:'planned'},
-  {code:'AI499',title:'مشروع التخرج في الذكاء الاصطناعي والتدريب الميداني',level:4,hours:6,track:'ai_practice',status:'planned'}
-];
-DEFAULT_CURRICULUM.forEach(c=>{c.status='pending'});
 
 const DEFAULT_TASKS=[];
 
-const DEFAULT_SKILLS=[
-  {id:'sk1',title:'إتقان أساسيات البرمجة وحل المشكلات (C++ / Python)',done:true},
-  {id:'sk2',title:'مكتبات علوم البيانات الأساسية (NumPy, Pandas, Matplotlib)',done:true},
-  {id:'sk3',title:'خوارزميات التعلم الآلي الكلاسيكية (Scikit-Learn: Regression, SVM, Trees)',done:false},
-  {id:'sk4',title:'التعلم العميق والشبكات العصبية (PyTorch / TensorFlow & Keras)',done:false},
-  {id:'sk5',title:'الرؤية بالحاسب ومعالجة الصور (OpenCV & YOLO)',done:false},
-  {id:'sk6',title:'معالجة اللغات الطبيعية ونماذج الذكاء التوليدي (NLP, Transformers & RAG)',done:false},
-  {id:'sk7',title:'إدارة الأكواد والمشاريع البرمجية (Git, GitHub & Kaggle Competitions)',done:true}
-];
-DEFAULT_SKILLS.forEach(k=>{k.done=false});
 
 let customSched=ld('fci_custom_sched',[]);
 let attendanceList=ld('fci_attendance',DEFAULT_ATTENDANCE);
 let gpaCoursesList=ld('fci_rich_gpa',DEFAULT_GPA_COURSES).map(c=>Object.assign({},c,{grade:GRADE_MIGRATE[c.grade]||c.grade}));
 let personalTasks=ld('fci_personal_tasks',DEFAULT_TASKS);
-let curriculumList=ld('fci_ai_curriculum',DEFAULT_CURRICULUM);
-let skillsList=ld('fci_ai_skills',DEFAULT_SKILLS);
 let studyStats=ld('fci_study_stats',{minutes:0,sessions:0});
 let activeSchedDay='all';
 let activeTaskFilter='all';
-let activeAiTrack='all';
 
 /* ===== 2. منطق الجدول ومتتبع الغياب ===== */
 function renderScheduleHub(){
@@ -1331,89 +1219,11 @@ function togglePomoSound(){
 }
 
 /* ===== 5. منطق خطة الـ 144 ساعة ودليل الكلية ===== */
-function renderAiGuideHub(){
-  const compHours=curriculumList.filter(c=>c.status==='completed').reduce((a,c)=>a+(Number(c.hours)||3),0);
-  const pct=Math.min(100,Math.round(compHours/144*100));
-  $('planHoursBadge').textContent=`المجتاز بالخطة: ${compHours} / 144 ساعة (${pct}%)`;
-  $('planProgressText').textContent=`${compHours} ساعة من 144 ساعة (${pct}%)`;
-  $('planProgressBar').style.width=pct+'%';
 
-  $('ai8TracksContainer').innerHTML=AI_8_TRACKS.map(tr=>`
-    <button type="button" class="tile" style="${activeAiTrack===tr.id?'background:var(--secondary-color);color:#fff':''}" onclick="setAiTrackFilter('${tr.id}')">
-      <span>${tr.icon}</span>
-      <div>${esc(tr.name)}</div>
-      <small style="font-weight:normal;opacity:.8;font-size:11px">${esc(tr.desc)}</small>
-    </button>
-  `).join('');
 
-  const q=norm($('currSearchIn').value.trim());
-  const lv=$('currLevelFilter').value;
-  const st=$('currStatusFilter').value;
-  const filtered=curriculumList.filter(c=>{
-    if(activeAiTrack!=='all'&&c.track!==activeAiTrack)return false;
-    if(lv!=='all'&&String(c.level)!==lv)return false;
-    if(st!=='all'&&c.status!==st)return false;
-    if(q&&!norm(c.title+' '+c.code).includes(q))return false;
-    return true;
-  });
 
-  const stMap={
-    completed:{label:'مجتاز ✅',cls:'badge-ok'},
-    in_progress:{label:'مسجل حالياً 📖',cls:'badge-lec'},
-    planned:{label:'متبقي بالخطة ⏳',cls:'badge-lab'}
-  };
-  $('curriculumGridBox').innerHTML=filtered.map(c=>{
-    const s=stMap[c.status]||stMap.planned;
-    return `<div style="padding:12px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border-col);display:flex;flex-direction:column;justify-content:space-between;gap:8px">
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span class="tag">${esc(c.code)}</span>
-          <small style="color:#888">المستوى ${c.level} • ${c.hours} ساعات</small>
-        </div>
-        <b style="font-size:14px">${esc(c.title)}</b>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px dashed var(--border-col)">
-        <span class="badge-soft ${s.cls}">${s.label}</span>
-        <button type="button" class="btn sm" onclick="cyclePlanCourse('${esc(c.code)}')">تغيير الحالة ↻</button>
-      </div>
-    </div>`;
-  }).join('');
 
-  $('skillsChecklistBox').innerHTML=skillsList.map(sk=>`
-    <div class="ev" style="cursor:pointer" onclick="toggleSkillItem('${esc(sk.id)}')">
-      <span style="font-weight:700;font-size:13px">${esc(sk.title)}</span>
-      <span class="badge-soft ${sk.done?'badge-ok':'badge-lec'}">${sk.done?'مكتمل ✅':'قيد التعلم'}</span>
-    </div>
-  `).join('');
-}
-function setAiTrackFilter(id){
-  activeAiTrack=(activeAiTrack===id)?'all':id;
-  renderAiGuideHub();
-}
-function cyclePlanCourse(code){
-  const c=curriculumList.find(x=>x.code===code);
-  if(!c)return;
-  const ord=['planned','in_progress','completed'];
-  c.status=ord[(ord.indexOf(c.status)+1)%ord.length];
-  sv('fci_ai_curriculum',curriculumList);
-  renderAiGuideHub();
-}
-$('addPlanCourseForm').addEventListener('submit',e=>{
-  e.preventDefault();
-  const code=$('newPlanCode').value.trim().toUpperCase();
-  const title=$('newPlanTitle').value.trim();
-  const level=Number($('newPlanLevel').value)||2;
-  if(!code||!title)return;
-  curriculumList.unshift({code,title,level,hours:3,track:activeAiTrack==='all'?'fundamentals':activeAiTrack,status:'in_progress'});
-  sv('fci_ai_curriculum',curriculumList);
-  $('newPlanCode').value='';$('newPlanTitle').value='';
-  renderAiGuideHub();
-  toast('تمت إضافة المقرر لخطتك الدراسية ✅');
-});
-function toggleSkillItem(id){
-  const sk=skillsList.find(x=>x.id===id);
-  if(sk){sk.done=!sk.done;sv('fci_ai_skills',skillsList);renderAiGuideHub()}
-}
+
 
 /* ===== الإدارة وربط Google Sheets ===== */
 $('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')checkLogin()});
@@ -1432,12 +1242,12 @@ function exportBackup(){
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='fci-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);
 }
 function renderReports(){
-  const r=getReps();$('repBadge').textContent=r.length||'';$('reportsSection').style.display=r.length?'block':'none';
+  const r=getReps();$('reportsSection').style.display=r.length?'block':'none';
   $('reportsList').innerHTML=r.map(x=>`<div class="report-item"><span>${esc(x.subject)} - ${esc(x.title)}</span><button class="btn btn-warning" style="padding:4px 10px" data-rid="${esc(x.id)}">إخفاء</button></div>`).join('');
 }
 
 /* ===== عرض المواد والملفات ===== */
-let favs=ld('fci_favs',[]),liked=ld('fci_liked',[]),done=ld('fci_done',[]),openSubs=new Set(),Q='',W='',TF='';
+let favs=ld('fci_favs',[]),done=ld('fci_done',[]),openSubs=new Set(),Q='',W='',TF='';
 const norm=t=>String(t||'').toLowerCase().replace(/[\u064B-\u065F\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
 $('searchBox').addEventListener('input',e=>{Q=norm(e.target.value.trim());render()});
 $('weekFilter').addEventListener('change',e=>{W=e.target.value;render()});
@@ -1467,7 +1277,7 @@ function render(){
       if(!list.length)return;
       h+=`<h4 class="category-title">${t}</h4>`;
       list.forEach(m=>{
-        const isNew=Date.now()-m.timestamp<7*864e5,dn2=done.includes(m.id),lk=liked.includes(m.id);
+        const isNew=Date.now()-m.timestamp<7*864e5,dn2=done.includes(m.id);
         const cm=(m.comments||[]).map((c,i)=>{c=typeof c==='string'?{n:'طالب',t:c}:c;return `<div class="comment-item"><span>💬 <b>${esc(c.n)}:</b> ${esc(c.t)}</span>${isAdmin?`<button class="delete-btn" style="border:0;border-radius:4px;cursor:pointer" data-act="delc" data-id="${m.id}" data-i="${i}" aria-label="حذف تعليق">🗑️</button>`:''}</div>`}).join('');
         h+=`<div class="material-item${dn2?' done':''}"><div class="item-header"><span class="item-title">${getIcon(m.viewLink)} ${esc(m.title)} ${isNew?'<span class="new-badge">جديد</span>':''} ${m.type==='تكليفات'?dlBadge(m.deadline):''}</span>
 <div class="action-links">
@@ -1477,7 +1287,6 @@ function render(){
 <button class="note-btn save-btn ${saved.indexOf(m.id)>-1?'on':''}" data-act="save" data-id="${m.id}" aria-label="حفظ">🔖</button>
 <button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${m.id}" aria-label="ملاحظة">📝</button>
 <button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
-<button class="like-btn ${lk?'liked':''}" data-act="like" data-id="${m.id}">👍 ${m.likes||0}</button>
 <a href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer" class="open-btn" data-act="view" data-id="${m.id}">عرض</a>
 <a href="${esc(getDL(m.viewLink))}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${m.id}">تحميل</a>
 ${isAdmin?`<button class="edit-btn" data-act="copy" data-id="${m.id}" aria-label="نسخ">📋</button><button class="edit-btn" data-act="edit" data-id="${m.id}" aria-label="تعديل">✏️</button><button class="delete-btn" data-act="del" data-id="${m.id}" aria-label="حذف">🗑️</button>`:''}
@@ -1534,7 +1343,7 @@ async function saveMaterial(){
   if(!link)return toast('الرابط لازم يبدأ بـ https://',1);
   const dp=dupOf(link,item.title,item.subject);
   if(dp&&!(await askConfirm('فيه ملف مشابه بالفعل: «'+dp.title+'» ('+dp.subject+'). تضيفه برضه؟')))return;
-  if(await act('add',{item},'تم النشر!'))['addSubject','addTitle','addLink','addDeadline','addTags','addPub'].forEach(i=>$(i).value='');
+  if(await act('add',{item},'تم النشر!'))['addTitle','addLink','addDeadline','addTags','addPub'].forEach(i=>$(i).value='');
 }
 async function deleteMat(id){if(await askConfirm('حذف هذا الملف؟'))act('del',{id},'مُسح')}
 async function clearAllData(){if(await askConfirm('تصفير كلي؟ (اعمل نسخة احتياطية الأول)'))act('clear',{},'تم')}
@@ -1563,7 +1372,6 @@ $('cards').addEventListener('click',e=>{
   if(a==='read')return openReader(id);
   if(a==='tag'){$('searchBox').value=s;Q=norm(s);return render()}
   if(a==='rep')return reportLink(id);
-  if(a==='like'){const on=toggleIn(liked,id,'fci_liked');render();return act('like',{id,d:on?1:-1})}
   if(a==='share'){
     const m=getDB().find(x=>x.id===id);if(!m)return;
     if(navigator.share)navigator.share({title:m.title,text:m.subject+' - '+m.title,url:m.viewLink}).catch(()=>{});else copyText(m.viewLink);return;
@@ -1650,7 +1458,7 @@ function openShareMsg(){
   tool(`<h3>📣 رسالة جاهزة للجروب</h3><p style="font-size:12px;margin:0 0 8px">انسخها وابعتها في واتساب أو تليجرام، وعدّل عليها لو حبيت.</p><textarea id="smTxt" class="form-input" style="min-height:260px">${esc(t)}</textarea><button class="btn" style="width:100%;margin-top:8px" onclick="copyText($('smTxt').value)">📋 نسخ الرسالة</button>`);
 }
 function exportCsv(){
-  const cols=[['title','العنوان'],['subject','المادة'],['type','النوع'],['week','الأسبوع'],['track','النظام'],['dept','القسم'],['level','الفرقة'],['semester','الفصل'],['doctor','الدكتور'],['tags','الوسوم'],['viewLink','الرابط'],['views','مشاهدات'],['downloads','تحميلات'],['likes','إعجابات'],['by','نشره'],['dateAdded','تاريخ الإضافة']];
+  const cols=[['title','العنوان'],['subject','المادة'],['type','النوع'],['week','الأسبوع'],['track','النظام'],['dept','القسم'],['level','الفرقة'],['semester','الفصل'],['doctor','الدكتور'],['tags','الوسوم'],['viewLink','الرابط'],['views','مشاهدات'],['downloads','تحميلات'],['by','نشره'],['dateAdded','تاريخ الإضافة']];
   const q=v=>{let t=String(v==null?'':v);if(/^[=+\-@]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};
   const csv='\uFEFF'+[cols.map(c=>q(c[1])).join(',')].concat(getDB().map(i=>cols.map(c=>q(i[c[0]])).join(','))).join('\r\n');
   const b=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
@@ -1674,16 +1482,41 @@ async function bulkMoveGo(){
   if(!Object.keys(f).length)return toast('اختار حاجة تتغيّر',1);
   if(await act('bulkedit',{ids:selIds(),fields:f})){closeModal('toolModal');bulkClear()}
 }
+const ADM_CNT={};
+async function refreshCounts(){
+  const db=getDB();
+  ADM_CNT.rep=getReps().length;ADM_CNT.sch=db.filter(i=>i.publishAt&&+i.publishAt>Date.now()).length;ADM_CNT.hid=db.filter(i=>i.hidden).length;
+  ADM_CNT.com=db.reduce((a,i)=>a+(i.comments||[]).length,0);
+  try{ADM_CNT.req=(await api('reqlist')).requests.filter(r=>r.status==='جديد').length}catch(e){ADM_CNT.req=null}
+  try{ADM_CNT.hl=(await api('healthlist')).health.length}catch(e){ADM_CNT.hl=null}
+  try{ADM_CNT.ct=(await api('contriblist')).contrib.length}catch(e){ADM_CNT.ct=null}
+  const tot=(ADM_CNT.rep||0)+(ADM_CNT.req||0)+(ADM_CNT.ct||0);$('repBadge').textContent=tot||'';
+  return ADM_CNT;
+}
+async function loadStudentsTab(){
+  const c=await refreshCounts(),set=(id,n)=>{$(id).textContent=n==null?'':n};
+  set('cntCtr',c.ct);set('cntReq',c.req);set('cntCom',c.com);
+}
 async function loadAttention(){
   const box=$('attention');if(!box)return;
-  const db=getDB(),sch=db.filter(i=>i.publishAt&&+i.publishAt>Date.now()).length,hid=db.filter(i=>i.hidden).length,rep=getReps().length;
-  let req=null,hl=null,ct=null;
-  try{req=(await api('reqlist')).requests.filter(r=>r.status==='جديد').length}catch(e){}
-  try{hl=(await api('healthlist')).health.length}catch(e){}
-  try{ct=(await api('contriblist')).contrib.length}catch(e){}
-  const c=(n,ic,t,fn)=>`<button class="tile" onclick="${fn}"><span>${ic}</span><b>${n==null?'؟':n}</b>${t}</button>`;
-  box.innerHTML='<h4>🔔 محتاج انتباهك</h4><div class="agrid">'+c(ct,'📬','مساهمات للمراجعة','openContribs()')+c(req,'📥','طلبات جديدة','openReqList()')+c(rep,'⚠️','بلاغات',"adminTab('home')")+c(hl,'🩺','روابط فيها مشاكل','openHealth()')+c(sch,'⏳','ملفات مجدولة',"adminTab('files')")+c(hid,'🙈','ملفات مخفية',"adminTab('files')")+'</div>';
+  const c=await refreshCounts();
+  const t=(n,ic,l,fn)=>`<button class="tile" onclick="${fn}"><span>${ic}</span><b>${n==null?'؟':n}</b>${l}</button>`;
+  box.innerHTML='<h4>🔔 محتاج انتباهك</h4><div class="agrid">'+t(c.ct,'📬','مساهمات للمراجعة','openContribs()')+t(c.req,'📥','طلبات جديدة','openReqList()')+t(c.rep,'⚠️','بلاغات',"adminTab('students')")+t(c.hl,'🩺','روابط فيها مشاكل','openHealth()')+t(c.sch,'⏳','ملفات مجدولة',"adminTab('files')")+t(c.hid,'🙈','ملفات مخفية',"adminTab('files')")+'</div>';
 }
+/* لصق ذكي: بيملّى العنوان والنوع والأسبوع من اسم ملف الدرايف */
+let LI_T=null;
+async function smartPaste(){
+  const l=safeUrl($('addLink').value.trim());if(!l||!isAdmin)return;
+  try{
+    const j=await api('linkinfo',{url:l});
+    if(j.name&&!$('addTitle').value.trim())$('addTitle').value=j.name;
+    if(j.type)$('addType').value=j.type;
+    if(j.week&&j.week!=='عام')$('addWeek').value=j.week;
+    if(j.name){$('addType').dispatchEvent(new Event('change'));toast('اتعبّى العنوان والنوع تلقائي ✨')}
+  }catch(e){}
+}
+$('addLink').addEventListener('input',()=>{clearTimeout(LI_T);LI_T=setTimeout(smartPaste,600)});
+$('addLink').addEventListener('keydown',e=>{if(e.key==='Enter')saveMaterial()});
 let SUBS=[];
 function openSubjects(){
   const g={};
@@ -1731,7 +1564,7 @@ async function openContribs(){
     tool(`<h3>📬 المساهمات (${CTR.length})</h3>${CTR.length?CTR.map((c,n)=>`<div class="acard"><b>${esc(c.title)}</b><br><small>${esc(c.subject)} • ${esc(c.type)} • ${esc(c.week)} • ${esc(c.level)} • ${esc(c.dept)} • ${esc(c.semester)}<br>🤝 ${esc(c.contributor)} • ${esc(c.at)}</small><div class="action-links" style="margin-top:6px"><a class="open-btn" href="${esc(c.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" data-ca="${n}">✅ نشر</button><button class="btn btn-danger sm" data-cr="${esc(c.id)}">❌ رفض</button></div></div>`).join(''):'<p>مفيش مساهمات مستنية ✅</p>'}`);
   }catch(e){toast(e.message||'خطأ',1)}
 }
-const SYNC_KEYS=['fci_done','fci_saved','fci_favs','fci_notes','fci_liked','fci_path','fci_personal_tasks','fci_quick_notes','fci_attendance','fci_custom_sched','fci_ai_skills','fci_ai_curriculum','fci_study_stats'],SYNC_GPA=['fci_rich_gpa','fci_gpa_meta'],SYNC_ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SYNC_KEYS=['fci_done','fci_saved','fci_favs','fci_notes','fci_path','fci_personal_tasks','fci_quick_notes','fci_attendance','fci_custom_sched','fci_study_stats'],SYNC_GPA=['fci_rich_gpa','fci_gpa_meta'],SYNC_ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function syncNewCode(){const a=new Uint32Array(10);crypto.getRandomValues(a);return Array.from(a,x=>SYNC_ALPHA[x%32]).join('')}
 function syncCollect(g){const o={};SYNC_KEYS.concat(g?SYNC_GPA:[]).forEach(k=>{try{const v=localStorage.getItem(k);if(v!==null)o[k]=v}catch(e){}});return o}
 function openSync(){
@@ -1804,7 +1637,6 @@ function openMenu(){
     ['🗓','الجدول الدراسي ومتتبع الغياب','closeModal(\'toolModal\');switchMainView(\'scheduleView\')'],
     ['🧮','حاسبة المعدل التراكمي والدرجات','closeModal(\'toolModal\');switchMainView(\'gpaView\')'],
     ['⏱️','إدارة التسليمات ومؤقت المذاكرة','closeModal(\'toolModal\');switchMainView(\'studyView\')'],
-    ['🧠','خطة الـ 144 ساعة ودليل الكلية','closeModal(\'toolModal\');switchMainView(\'aiGuideView\')'],
     ['🔍','بحث في كل الملفات','openGlobalSearch()'],['🗓','خطة مذاكرة ذكية','openPlanner()'],['➕','ساهم بملف','openContribute()'],['☁️','مزامنة بياناتي','openSync()'],['🔖','المحفوظات','openSaved()'],['📆','تصدير المواعيد للتقويم','exportIcs()'],['💬','طلب مادة / اقتراح للإدارة','openReq()'],
     ['📲','تثبيت التطبيق على الهاتف','openInstall()']
   ].concat(isAdmin?[
@@ -1896,7 +1728,7 @@ function openDash(){
   const db=getDB(),sum=f=>db.reduce((a,i)=>a+(i[f]||0),0),by={};
   db.forEach(i=>{const o=by[i.subject]=by[i.subject]||{n:0,u:0};o.n++;o.u+=(i.views||0)+(i.downloads||0)});
   const top=db.slice().sort((a,b)=>((b.views||0)+(b.downloads||0))-((a.views||0)+(a.downloads||0))).slice(0,6);
-  tool(`<h3>📈 إحصائيات الموقع</h3><div class="stats-container"><div class="stat-box"><div class="stat-num">${db.length}</div>ملف</div><div class="stat-box"><div class="stat-num">${sum('views')}</div>مشاهدة</div><div class="stat-box"><div class="stat-num">${sum('downloads')}</div>تحميل</div><div class="stat-box"><div class="stat-num">${sum('likes')}</div>إعجاب</div></div><h4>أكتر المواد استخداماً</h4>${Object.keys(by).sort((a,b)=>by[b].u-by[a].u).slice(0,6).map(k=>`<div class="ev"><span>${esc(k)}</span><span>${by[k].u} استخدام • ${by[k].n} ملف</span></div>`).join('')}<h4>أكتر الملفات</h4>${top.map(itemRow).join('')}`);
+  tool(`<h3>📈 إحصائيات الموقع</h3><div class="stats-container"><div class="stat-box"><div class="stat-num">${db.length}</div>ملف</div><div class="stat-box"><div class="stat-num">${sum('views')}</div>مشاهدة</div><div class="stat-box"><div class="stat-num">${sum('downloads')}</div>تحميل</div></div><h4>أكتر المواد استخداماً</h4>${Object.keys(by).sort((a,b)=>by[b].u-by[a].u).slice(0,6).map(k=>`<div class="ev"><span>${esc(k)}</span><span>${by[k].u} استخدام • ${by[k].n} ملف</span></div>`).join('')}<h4>أكتر الملفات</h4>${top.map(itemRow).join('')}`);
   visitsInto();
 }
 async function openLog(){
@@ -1942,6 +1774,7 @@ function adminTab(t){
   document.querySelectorAll('.atab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   if(t==='home'){updateStats();renderReports();loadAttention()}
   if(t==='files')renderAdminFiles();
+  if(t==='students')loadStudentsTab();
 }
 function renderAdminFiles(){
   const db=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp),q=norm(AF.q);
@@ -1952,7 +1785,7 @@ function renderAdminFiles(){
   $('afCount').textContent=all.length+' ملف';
   $('afList').innerHTML=l.length?l.map(m=>{
     const can=OWNER||m.by===ME,sch=m.publishAt&&+m.publishAt>Date.now();
-    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${m.id}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0} 👍${m.likes||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${m.id}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${m.id}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${m.id}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
+    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${m.id}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${m.id}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${m.id}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${m.id}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
   }).join(''):'<p style="text-align:center">لا توجد ملفات.</p>';
   $('afMore').style.display=all.length>AF.n?'block':'none';
 }
