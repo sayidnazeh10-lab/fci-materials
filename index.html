@@ -175,6 +175,15 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
 .save-btn{color:#c0392b;background:rgba(192,57,43,.1)}.save-btn.on{background:#c0392b;color:#fff}
 .tile b{font-size:22px}
 .frow .afck{width:18px;height:18px}
+.card-grid.single-tab{grid-template-columns:1fr!important}
+.sub-tab-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--subtle-bg);border:1px solid var(--border-col);border-radius:12px;padding:8px 12px}
+.sub-tab-chip{display:inline-flex;align-items:center;gap:10px;background:var(--secondary-color);color:#fff;padding:6px 12px;border-radius:9px;font-weight:700;font-size:14px}
+.sub-tab-x{border:0;background:rgba(255,255,255,.22);color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
+.sub-tab-x:hover{background:var(--danger-color)}
+.sub-close-pill{background:rgba(231,76,60,.25);color:#fff;border:1px solid rgba(255,255,255,.25);padding:3px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px}
+.sub-close-pill:hover{background:var(--danger-color)}
+.sub-mini-pbar{height:4px;background:rgba(127,127,127,.2);overflow:hidden}
+.sub-mini-pbar i{display:block;height:100%;background:var(--success-color);transition:width .3s}
 </style>
 </head>
 <body>
@@ -805,14 +814,14 @@ function goHome(){
 }
 $('brandHomeBtn').addEventListener('click',goHome);
 function quickSelectAI(){
-  userPath={track:'خاص',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الأول'};
+  activeSub=null;userPath={track:'خاص',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الأول'};
   sv('fci_path',userPath);
   showResults('الفصل الأول');
   toast('تم فتح مسار برنامج الذكاء الاصطناعي — الفرقة الثانية ⚡');
 }
-function clearSavedPath(){try{localStorage.removeItem('fci_path')}catch(e){}userPath={};resetTo('trackStep')}
+function clearSavedPath(){try{localStorage.removeItem('fci_path')}catch(e){}activeSub=null;userPath={};resetTo('trackStep')}
 function goStep(n){document.querySelectorAll('.student-step').forEach(s=>s.hidden=true);$(n).hidden=false}
-function resetTo(n){if(n==='trackStep')userPath={};goStep(n)}
+function resetTo(n){activeSub=null;if(n==='trackStep')userPath={};goStep(n)}
 function showResults(sem){
   userPath.semester=sem;sv('fci_path',userPath);goStep('resultsStep');
   $('chosenResultsLabel').textContent=[trackLabel(userPath.track),userPath.dept&&userPath.dept!=='مشترك'?userPath.dept:'',userPath.level,sem].filter(Boolean).join(' > ');
@@ -821,7 +830,7 @@ function showResults(sem){
 $('studentFlow').addEventListener('click',e=>{
   const b=e.target.closest('.btn[data-k]');if(!b)return;
   const k=b.dataset.k,v=b.dataset.v,gen=()=>userPath.track==='عام';
-  if(k==='semester')return showResults(v);
+  if(k==='semester'){activeSub=null;return showResults(v)}
   userPath[k]=v;
   if(k==='track'){
     delete userPath.dept;delete userPath.level;delete userPath.semester;
@@ -1267,7 +1276,7 @@ function renderReports(){
 }
 
 /* ===== عرض المواد والملفات ===== */
-let favs=ld('fci_favs',[]),done=ld('fci_done',[]),openSubs=new Set(),Q='',W='',TF='';
+let favs=ld('fci_favs',[]),done=ld('fci_done',[]),activeSub=null,Q='',W='',TF='';
 const norm=t=>String(t||'').toLowerCase().replace(/[\u064B-\u065F\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
 $('searchBox').addEventListener('input',e=>{Q=norm(e.target.value.trim());render()});
 $('weekFilter').addEventListener('change',e=>{W=e.target.value;render()});
@@ -1284,14 +1293,20 @@ function render(){
   if(W)db=db.filter(i=>i.week===W);
   if(TF)db=db.filter(i=>i.type===TF);
   const box=$('cards');
-  if(!db.length){box.innerHTML='<p style="text-align:center;grid-column:1/-1;color:#888">لا توجد ملفات مرفوعة حالياً في هذا المسار.</p>';return}
+  if(!db.length){box.classList.remove('single-tab');box.innerHTML='<p style="text-align:center;grid-column:1/-1;color:#888">لا توجد ملفات مرفوعة حالياً في هذا المسار.</p>';return}
   const g={};
   db.forEach(i=>{(g[i.subject]=g[i.subject]||{});(g[i.subject][i.type]=g[i.subject][i.type]||[]).push(i)});
   const subs=Object.keys(g).sort((a,b)=>(favs.includes(b)-favs.includes(a))||a.localeCompare(b,'ar'));
-  const single=subs.length===1;
-  box.innerHTML=subs.map(sub=>{
-    const isOpen=single||openSubs.has(sub),items=all.filter(i=>i.subject===sub),doc=all.filter(i=>i.subject===sub&&i.doctor).sort((x,y)=>y.timestamp-x.timestamp).map(i=>i.doctor)[0],dn=items.filter(i=>done.includes(i.id)).length,pct=items.length?Math.round(dn/items.length*100):0;
-    let h=`<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span>${isOpen?'▲':'▼'}</span></button><div class="subject-content" style="display:${isOpen?'block':'none'}"><div class="pbar"><i style="width:${pct}%"></i></div>`;
+  const focused=(activeSub&&subs.includes(activeSub))?activeSub:null;
+  box.classList.toggle('single-tab',!!focused);
+  const shownSubs=focused?[focused]:subs;
+  const tabHeader=focused?`<div class="sub-tab-bar"><div class="sub-tab-chip"><span>📚 ${esc(focused)}</span><button type="button" class="sub-tab-x" data-act="closeSub" title="إغلاق التاب" aria-label="إغلاق التاب">✕</button></div><button type="button" class="btn sm btn-danger" data-act="closeSub">← كل المواد (${subs.length})</button></div>`:'';
+  box.innerHTML=tabHeader+shownSubs.map(sub=>{
+    const isOpen=focused===sub,items=all.filter(i=>i.subject===sub),doc=all.filter(i=>i.subject===sub&&i.doctor).sort((x,y)=>y.timestamp-x.timestamp).map(i=>i.doctor)[0],dn=items.filter(i=>done.includes(i.id)).length,pct=items.length?Math.round(dn/items.length*100):0;
+    if(!isOpen){
+      return `<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span>▼</span></button><div class="sub-mini-pbar"><i style="width:${pct}%"></i></div></div>`;
+    }
+    let h=`<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span><span class="sub-close-pill" data-act="closeSub" role="button" aria-label="إغلاق المادة">✕ إغلاق</span></span></button><div class="subject-content"><div class="pbar"><i style="width:${pct}%"></i></div>`;
     TYPES.forEach(t=>{
       const list=(g[sub][t]||[]).slice().sort((a,b)=>(WEEKS.indexOf(a.week)-WEEKS.indexOf(b.week))||a.title.localeCompare(b.title,'ar',{numeric:true}));
       if(!list.length)return;
@@ -1390,7 +1405,8 @@ $('cards').addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el)return;
   const a=el.dataset.act,id=el.dataset.id,s=el.dataset.s;
   if(a==='view'||a==='dl'){api('bump',{id,f:a==='dl'?'downloads':'views'}).catch(()=>{});return}
-  if(a==='tog'){openSubs.has(s)?openSubs.delete(s):openSubs.add(s);return render()}
+  if(a==='closeSub'){e.stopPropagation();activeSub=null;return render()}
+  if(a==='tog'){activeSub=(activeSub===s)?null:s;render();if(activeSub&&$('cards').getBoundingClientRect().top<80)$('cards').scrollIntoView({behavior:'smooth',block:'start'});return}
   if(a==='sharesub'){e.stopPropagation();return shareSub(s)}
   if(a==='fav'){e.stopPropagation();toggleIn(favs,s,'fci_favs');return render()}
   if(a==='done'){toggleIn(done,id,'fci_done');return render()}
@@ -1429,7 +1445,7 @@ function gsRun(){
 }
 function goToItem(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
-  userPath={track:m.track,dept:m.dept,level:m.level};openSubs.add(m.subject);closeModal('toolModal');
+  userPath={track:m.track,dept:m.dept,level:m.level};activeSub=m.subject;closeModal('toolModal');
   switchMainView('studentFlow');showResults(m.semester);
 }
 function toggleSaved(id){
@@ -1718,7 +1734,7 @@ function toggleNotif(){
 }
 function closeNotif(){const d=$('notifDropdown');if(d.style.display==='block'){d.style.display='none';renderNotif()}}
 document.addEventListener('click',e=>{if(!e.target.closest('#notifDropdown,#notifBtn'))closeNotif()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotif()});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;closeNotif();const anyModal=['readModal','toolModal','confirmModal','editModal'].some(id=>$(id)&&$(id).style.display==='flex');if(!anyModal&&activeSub&&!$('studentFlow').hidden&&!$('resultsStep').hidden){activeSub=null;render()}});
 
 /* ===== القائمة والأدوات المدمجة ===== */
 function tool(h){$('toolBody').innerHTML=h+'<button class="btn btn-danger" style="width:100%;margin-top:12px" onclick="closeModal(\'toolModal\')">إغلاق</button>';$('toolModal').style.display='flex'}
@@ -1810,7 +1826,7 @@ function shareSub(sub){
 function applyHash(){
   const m=location.hash.match(/^#go=(.+)$/);if(!m)return;let a=[];try{a=decodeURIComponent(m[1]).split('|')}catch(e){}
   if(a.length<5)return;
-  userPath={track:a[0],dept:a[1],level:a[2]};openSubs.add(a.slice(4).join('|'));showSection('studentFlow');showResults(a[3]);history.replaceState(null,'',location.pathname);
+  userPath={track:a[0],dept:a[1],level:a[2]};activeSub=a.slice(4).join('|');showSection('studentFlow');showResults(a[3]);history.replaceState(null,'',location.pathname);
 }
 
 /* أدوات الأدمن */
