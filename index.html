@@ -6,6 +6,8 @@
   <title>FCI-Materials | منصة حاسبات ومعلومات جامعة أسيوط</title>
   <meta name="description" content="المنصة الأكاديمية المتكاملة لطلاب كلية الحاسبات والمعلومات بجامعة أسيوط — المحاضرات، السكاشن، الملخصات، الامتحانات، حاسبة GPA، والجدول الدراسي.">
   <meta name="theme-color" content="#060b16">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://api.qrserver.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self';">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
@@ -20,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
   <div id="bg" aria-hidden="true"><div class="bg-dots"></div></div>
@@ -461,9 +463,10 @@
     <!-- ==================== 5. ADMIN LOGIN & DASHBOARD ==================== -->
     <section id="adminLogin" class="drawer-label" hidden>
       <h2>دخول الإدارة 🔐</h2>
-      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">خاص بمشرفي المنصة وممثلي الدفعات</p>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">محمي بتشفير SHA-256 وتوكن HMAC-SHA256 وقفل تلقائي ضد التخمين</p>
       <div class="form-group" style="max-width:340px;margin:0 auto">
-        <input type="password" id="adminPassword" class="form-input" placeholder="كلمة المرور..." style="text-align:center">
+        <input type="text" id="adminUsername" class="form-input" placeholder="اسم المشرف (مثال: المالك)" autocomplete="username" style="text-align:center;margin-bottom:10px">
+        <input type="password" id="adminPassword" class="form-input" placeholder="كلمة المرور..." autocomplete="current-password" style="text-align:center">
         <button type="button" id="adminLoginBtn" class="btn" onclick="checkLogin()" style="width:100%;margin-top:14px">دخول لوحة التحكم</button>
       </div>
     </section>
@@ -608,8 +611,9 @@
         <div class="agrid" style="margin-bottom:16px">
           <button type="button" class="tile" onclick="openHealth()"><span>🩺</span>صحة الروابط</button>
           <button type="button" class="tile" onclick="openTrash()"><span>♻️</span>سلة المحذوفات</button>
-          <button type="button" class="tile" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
+          <button type="button" class="tile owner-only" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
           <button type="button" class="tile owner-only" onclick="openAdmins()"><span>👥</span>الأدمنز</button>
+          <button type="button" class="tile owner-only" onclick="openSecurityCenter()"><span>🛡️</span>مركز الأمان</button>
         </div>
         <div class="acard owner-only">
           <h4>📂 المنظّم الذكي لدرايف</h4>
@@ -684,6 +688,6 @@
 
   <button type="button" id="scrollTopBtn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى" aria-label="الأعلى">↑</button>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

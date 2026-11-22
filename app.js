@@ -23,6 +23,7 @@ const GRADE_MIGRATE={'A+ (90%+)':'A (90-100)','A (85-89%)':'A- (85-90)','B+ (80-
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeId=s=>String(s??'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64);
 function ld(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}}
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 const getDB=()=>DB;
@@ -205,10 +206,13 @@ const DEFAULT_GPA_COURSES=[];
 const DEFAULT_TASKS=[];
 
 
-let customSched=ld('fci_custom_sched',[]);
-let attendanceList=ld('fci_attendance',DEFAULT_ATTENDANCE);
-let gpaCoursesList=ld('fci_rich_gpa',DEFAULT_GPA_COURSES).map(c=>Object.assign({},c,{grade:GRADE_MIGRATE[c.grade]||c.grade}));
-let personalTasks=ld('fci_personal_tasks',DEFAULT_TASKS);
+function sanitizeLocalArr(arr,prefix){
+  return (Array.isArray(arr)?arr:[]).filter(x=>x&&typeof x==='object').map((x,i)=>Object.assign({},x,{id:safeId(x.id)||(prefix+i)}));
+}
+let customSched=sanitizeLocalArr(ld('fci_custom_sched',[]),'cs_');
+let attendanceList=sanitizeLocalArr(ld('fci_attendance',DEFAULT_ATTENDANCE),'att_');
+let gpaCoursesList=sanitizeLocalArr(ld('fci_rich_gpa',DEFAULT_GPA_COURSES),'gc_').map(c=>Object.assign({},c,{grade:GRADE_MIGRATE[c.grade]||c.grade}));
+let personalTasks=sanitizeLocalArr(ld('fci_personal_tasks',DEFAULT_TASKS),'pt_');
 let studyStats=ld('fci_study_stats',{minutes:0,sessions:0});
 let activeSchedDay='all';
 let activeTaskFilter='all';
@@ -243,7 +247,7 @@ function renderScheduleHub(){
           <b>${esc(item.subject)}</b><br>
           <small>📍 ${esc(item.place)}</small>
         </div>
-        ${!item.isBackend?`<button type="button" class="btn btn-danger sm" onclick="removeCustomSched('${esc(item.id)}')">🗑️</button>`:''}
+        ${!item.isBackend?`<button type="button" class="btn btn-danger sm" onclick="removeCustomSched('${safeId(item.id)}')">🗑️</button>`:''}
       </div>`;
     }).join('');
   }
@@ -260,9 +264,9 @@ function renderScheduleHub(){
       <div style="display:flex;justify-content:space-between;align-items:center">
         <small style="color:#888">${ratio>=0.75?'⚠️ تحذير: اقتربت من الحرمان!':'وضع الحضور آمن ✅'}</small>
         <div style="display:flex;gap:6px">
-          <button type="button" class="btn sm" style="padding:2px 9px" onclick="changeAbsence('${esc(att.id)}',-1)">-</button>
-          <button type="button" class="btn sm" style="padding:2px 9px" onclick="changeAbsence('${esc(att.id)}',1)">+</button>
-          <button type="button" class="btn btn-danger sm" style="padding:2px 8px" onclick="deleteAbsenceCourse('${esc(att.id)}')">✕</button>
+          <button type="button" class="btn sm" style="padding:2px 9px" onclick="changeAbsence('${safeId(att.id)}',-1)">-</button>
+          <button type="button" class="btn sm" style="padding:2px 9px" onclick="changeAbsence('${safeId(att.id)}',1)">+</button>
+          <button type="button" class="btn btn-danger sm" style="padding:2px 8px" onclick="deleteAbsenceCourse('${safeId(att.id)}')">✕</button>
         </div>
       </div>
     </div>`;
@@ -375,14 +379,14 @@ function renderGpaHub(){
   const gradeKeys=Object.keys(GRADE_POINTS);
   $('richGpaCoursesList').innerHTML=gpaCoursesList.length?gpaCoursesList.map((c,idx)=>`
     <div class="gpa-row">
-      <input type="text" class="form-input" value="${esc(c.name)}" placeholder="اسم المقرر #${idx+1}" oninput="updateGpaCourse('${esc(c.id)}','name',this.value)">
-      <select class="form-select" onchange="updateGpaCourse('${esc(c.id)}','hours',this.value)">
+      <input type="text" class="form-input" value="${esc(c.name)}" placeholder="اسم المقرر #${idx+1}" oninput="updateGpaCourse('${safeId(c.id)}','name',this.value)">
+      <select class="form-select" onchange="updateGpaCourse('${safeId(c.id)}','hours',this.value)">
         ${[1,2,3,4].map(h=>`<option value="${h}"${Number(c.hours)===h?' selected':''}>${h} س</option>`).join('')}
       </select>
-      <select class="form-select" onchange="updateGpaCourse('${esc(c.id)}','grade',this.value)">
+      <select class="form-select" onchange="updateGpaCourse('${safeId(c.id)}','grade',this.value)">
         ${gradeKeys.map(g=>`<option value="${esc(g)}"${c.grade===g?' selected':''}>${esc(g)}</option>`).join('')}
       </select>
-      <button type="button" class="btn btn-danger sm" onclick="removeGpaCourse('${esc(c.id)}')" aria-label="حذف المقرر">🗑️</button>
+      <button type="button" class="btn btn-danger sm" onclick="removeGpaCourse('${safeId(c.id)}')" aria-label="حذف المقرر">🗑️</button>
     </div>
   `).join(''):'<div class="cat-empty-hint">اضغط «➕ إضافة مادة» لحساب معدلك الفصلي والتراكمي.</div>';
   refreshGpaNumbers();
@@ -475,7 +479,7 @@ function renderStudyHub(){
     const pCol=t.priority==='عاجل'?'badge-urgent':t.priority==='متوسط'?'badge-lec':'badge-ok';
     return `<div class="ev" style="${t.done?'opacity:.6':''}">
       <div style="display:flex;align-items:center;gap:10px">
-        <button type="button" class="done-btn ${t.done?'on':''}" style="border:1px solid var(--border-col);border-radius:6px;padding:4px 9px;cursor:pointer" onclick="togglePersonalTask('${esc(t.id)}')">✔</button>
+        <button type="button" class="done-btn ${t.done?'on':''}" style="border:1px solid var(--border-col);border-radius:6px;padding:4px 9px;cursor:pointer" onclick="togglePersonalTask('${safeId(t.id)}')">✔</button>
         <div>
           <b style="${t.done?'text-decoration:line-through':''}">${esc(t.title)}</b><br>
           <small>${esc(t.course)} • تسليم: ${esc(t.date)}</small>
@@ -483,7 +487,7 @@ function renderStudyHub(){
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <span class="badge-soft ${pCol}">${esc(t.priority)}</span>
-        <button type="button" class="btn btn-danger sm" onclick="deletePersonalTask('${esc(t.id)}')">🗑️</button>
+        <button type="button" class="btn btn-danger sm" onclick="deletePersonalTask('${safeId(t.id)}')">🗑️</button>
       </div>
     </div>`;
   }).join(''):'<p style="text-align:center;color:#888">لا توجد مهام في هذا التصنيف.</p>';
@@ -528,7 +532,7 @@ function openNote(id){
   const m=getDB().find(x=>x.id===id);
   const notes=ld('fci_notes',{});
   const cur=notes[id]||'';
-  tool(`<h3>📝 ملاحظة خاصة على الملف</h3><p style="font-size:13px;color:#888;margin:0 0 8px">${esc(m?m.subject+' — '+m.title:'ملف دراسي')}</p><textarea id="fileNoteInput" class="form-input" rows="5" placeholder="اكتب ملاحظاتك أو النقاط المهمة في هذا الملف...">${esc(cur)}</textarea><div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn" style="flex:1" onclick="saveFileNote('${esc(id)}')">💾 حفظ الملاحظة</button><button type="button" class="btn btn-warning" onclick="deleteFileNote('${esc(id)}')">مسح</button></div>`);
+  tool(`<h3>📝 ملاحظة خاصة على الملف</h3><p style="font-size:13px;color:#888;margin:0 0 8px">${esc(m?m.subject+' — '+m.title:'ملف دراسي')}</p><textarea id="fileNoteInput" class="form-input" rows="5" placeholder="اكتب ملاحظاتك أو النقاط المهمة في هذا الملف...">${esc(cur)}</textarea><div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn" style="flex:1" onclick="saveFileNote('${safeId(id)}')">💾 حفظ الملاحظة</button><button type="button" class="btn btn-warning" onclick="deleteFileNote('${safeId(id)}')">مسح</button></div>`);
 }
 function saveFileNote(id){
   const notes=ld('fci_notes',{});
@@ -559,7 +563,7 @@ function renderSavedFileNotesList(){
   if(!keys.length){box.innerHTML='';return}
   box.innerHTML=`<h4 style="margin:10px 0 6px;font-size:13px">📌 ملاحظاتك المحفوظة على ملفات المواد (${keys.length}):</h4>`+keys.map(id=>{
     const m=getDB().find(x=>x.id===id);
-    return `<div class="comment-item"><span><b>${esc(m?m.title:'ملف')}:</b> ${esc(notes[id])}</span><button type="button" class="btn sm" onclick="openNote('${esc(id)}')">✏️</button></div>`;
+    return `<div class="comment-item"><span><b>${esc(m?m.title:'ملف')}:</b> ${esc(notes[id])}</span><button type="button" class="btn sm" onclick="openNote('${safeId(id)}')">✏️</button></div>`;
   }).join('');
 }
 
@@ -634,6 +638,7 @@ function togglePomoSound(){
 
 
 /* ===== الإدارة وربط Google Sheets ===== */
+$('adminUsername').addEventListener('keydown',e=>{if(e.key==='Enter')$('adminPassword').focus()});
 $('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')checkLogin()});
 function updateStats(){
   const db=getDB();$('statTotal').textContent=db.length;
@@ -675,7 +680,7 @@ function renderRecentStrip(all){
   all.forEach(i=>map[i.id]=i);
   const rec=ids.map(id=>map[id]).filter(Boolean);
   if(!rec.length){el.innerHTML='';return}
-  el.innerHTML=`<div class="recent-strip"><div class="recent-head"><span>🕒 كمّل مذاكرة (آخر ملفات فتحتها)</span><button type="button" class="recent-clear" onclick="clearRecent()">مسح ✕</button></div><div class="recent-chips">${rec.map(m=>`<button type="button" class="recent-chip" onclick="openReader('${esc(m.id)}')"><span class="rc-ic">${getIcon(m.viewLink)}</span><span class="rc-title">${esc(m.title)}</span><small>• ${esc(m.subject)}</small></button>`).join('')}</div></div>`;
+  el.innerHTML=`<div class="recent-strip"><div class="recent-head"><span>🕒 كمّل مذاكرة (آخر ملفات فتحتها)</span><button type="button" class="recent-clear" onclick="clearRecent()">مسح ✕</button></div><div class="recent-chips">${rec.map(m=>`<button type="button" class="recent-chip" onclick="openReader('${safeId(m.id)}')"><span class="rc-ic">${getIcon(m.viewLink)}</span><span class="rc-title">${esc(m.title)}</span><small>• ${esc(m.subject)}</small></button>`).join('')}</div></div>`;
 }
 function toggleAllCategoryDone(sub,type){
   const p=userPath,unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1;
@@ -771,14 +776,24 @@ function toggleIn(arr,v,key){const i=arr.indexOf(v);i>-1?arr.splice(i,1):arr.pus
 
 /* ===== الاتصال بـ Google Sheets API ===== */
 const API='https://script.google.com/macros/s/AKfycbyS2hyRuwqBDB5IXxlyCqM2Kzqb-j6jBDpmxlS7T4_ho1Gn1o7xSEttfcqIb1ZuthxrdQ/exec';
-let DB=fixItems(ld('fci_db',[])),REPS=[],ANN=ld('fci_ann',''),PASS='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]);
+let DB=fixItems(ld('fci_db',[])),REPS=[],ANN=ld('fci_ann',''),TOK='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]);
 const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
-  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:a,pass:PASS,...d})});
+  const body=Object.assign({action:a},TOK?{tok:TOK}:{},d);
+  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
   const txt=await r.text();let j;
   try{j=JSON.parse(txt)}catch(e){throw new Error('السيرفر رجّع رد غير متوقع — تأكد من تشغيل authorize() وعمل New Deployment في Apps Script')}
-  if(j.error)throw new Error(j.error);return j;
+  if(j.error){
+    if(/انتهت صلاحية الجلسة/.test(j.error)&&isAdmin){
+      isAdmin=false;TOK='';ME='';OWNER=false;
+      try{sessionStorage.removeItem('fci_adm_tok')}catch(x){}
+      $('adminBtn').style.display='block';$('logoutBtn').style.display='none';
+      showSection('adminLogin');
+    }
+    throw new Error(j.error);
+  }
+  return j;
 }
 function syncLocalAdminCounts(counts){
   const db=getDB();
@@ -810,7 +825,7 @@ async function refresh(manual){
   if(rBtn)rBtn.classList.add('spinning');
   try{
     if(!hasApi())throw new Error('لسه مفيش رابط API');
-    const j=(isAdmin&&PASS)?await api('adminsync'):await (await fetch(API)).json();
+    const j=(isAdmin&&TOK)?await api('adminsync'):await (await fetch(API)).json();
     lastRefreshAt=Date.now();isLoadingDB=false;apply(j);if(manual===true)toast('تم التحديث ✅');
   }catch(e){
     isLoadingDB=false;
@@ -834,38 +849,81 @@ function applyAdminSessionUI(j){
 let _loggingIn=false;
 async function checkLogin(){
   if(_loggingIn)return;
-  const p=$('adminPassword').value;if(!p)return;
+  const nm=$('adminUsername').value.trim(),p=$('adminPassword').value;
+  if(!nm||!p)return toast('اكتب اسم المشرف وكلمة المرور',1);
   const btn=$('adminLoginBtn');
-  _loggingIn=true;PASS=p;
-  if(btn){btn.disabled=true;btn.textContent='⏳ جاري تسجيل الدخول...'}
+  _loggingIn=true;
+  if(btn){btn.disabled=true;btn.textContent='⏳ جاري التحقق المشفّر...'}
   try{
-    const j=await api('login');
+    const j=await api('login',{name:nm,pass:p});
+    TOK=j.tok||'';
     applyAdminSessionUI(j);apply(j);
-    try{sessionStorage.setItem('fci_adm_sess',JSON.stringify({pass:PASS,name:ME,owner:OWNER,scope:j.scope||''}))}catch(e){}
-    $('adminPassword').value='';showSection('adminDashboard');toast('أهلاً '+ME+' 👋');
-  }catch(e){PASS='';toast(e.message||'خطأ',1)}
+    try{
+      sessionStorage.setItem('fci_adm_tok',JSON.stringify({tok:TOK,name:ME,owner:OWNER,scope:j.scope||''}));
+      sessionStorage.removeItem('fci_adm_sess');
+      sv('fci_last_adm_user',nm);
+    }catch(e){}
+    $('adminPassword').value='';showSection('adminDashboard');toast('أهلاً '+ME+' 🔐');
+  }catch(e){TOK='';toast(e.message||'خطأ',1)}
   finally{_loggingIn=false;if(btn){btn.disabled=false;btn.textContent='دخول لوحة التحكم'}}
 }
 async function restoreAdminSession(){
-  let s=null;try{s=JSON.parse(sessionStorage.getItem('fci_adm_sess'))}catch(e){}
-  if(!s||!s.pass)return false;
-  PASS=s.pass;
+  try{sessionStorage.removeItem('fci_adm_sess')}catch(e){}
+  let s=null;try{s=JSON.parse(sessionStorage.getItem('fci_adm_tok'))}catch(e){}
+  if(!s||!s.tok)return false;
+  TOK=s.tok;
   applyAdminSessionUI(s);
   try{
-    const j=await api('login');
-    applyAdminSessionUI(j);apply(j);
+    const j=await api('adminsync');
+    apply(j);
     return true;
   }catch(e){
-    isAdmin=false;PASS='';ME='';OWNER=false;
+    isAdmin=false;TOK='';ME='';OWNER=false;
     $('adminBtn').style.display='block';$('logoutBtn').style.display='none';
-    try{sessionStorage.removeItem('fci_adm_sess')}catch(x){}
+    try{sessionStorage.removeItem('fci_adm_tok')}catch(x){}
     return false;
   }
 }
 function logoutAdmin(){
-  isAdmin=false;PASS='';ME='';OWNER=false;
-  try{sessionStorage.removeItem('fci_adm_sess')}catch(e){}
+  if(TOK)api('logout').catch(()=>{});
+  isAdmin=false;TOK='';ME='';OWNER=false;
+  try{sessionStorage.removeItem('fci_adm_tok');sessionStorage.removeItem('fci_adm_sess')}catch(e){}
   $('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome();refresh('force');
+  toast('تم تسجيل الخروج وإلغاء الجلسة بأمان 🔒');
+}
+async function openSecurityCenter(){
+  if(!OWNER)return;
+  try{
+    const j=await api('secstatus'),s=j.sec||{};
+    tool(`<h3>🛡️ مركز الأمان والحماية (Fortress v8)</h3>
+      <div class="stat-grid" style="margin-bottom:12px">
+        <div class="stat-card"><small>حسابات مشفّرة</small><div class="stat-num">${s.hashedAdmins||0}/${s.totalAdmins||0}</div><small>SHA-256 + Pepper</small></div>
+        <div class="stat-card"><small>محاولات فاشلة</small><div class="stat-num">${s.globalFails||0}</div><small>${s.locked?'🔒 مقفول مؤقتاً':'✅ الوضع آمن'}</small></div>
+      </div>
+      <div class="acard" style="font-size:12.5px;line-height:1.9">
+        <div>✅ تشفير كلمات المرور: <b>Iterated SHA-256 + Salt + Server Pepper</b></div>
+        <div>✅ جلسات الإدارة: <b>HMAC-SHA256 Token (6 ساعات — بدون حفظ الباسورد)</b></div>
+        <div>✅ منع التخمين: <b>قفل تلقائي 15 دقيقة + تنبيه تليجرام بعد 5 محاولات</b></div>
+        <div>✅ حماية السبام: <b>Rate Limiting على كل العمليات العامة وتليجرام</b></div>
+        <div>✅ حماية الحقن: <b>Strict CSP + Formula Injection Shield + Sync Sanitizer</b></div>
+      </div>
+      ${s.plainAdmins>0?`<button type="button" class="btn btn-warning" style="width:100%;margin-bottom:8px" onclick="hashAllPasswords()">🔐 تشفير الـ ${s.plainAdmins} حساب القديم الآن</button>`:''}
+      <button type="button" class="btn btn-danger" style="width:100%" onclick="revokeAllSessions()">🚫 إنهاء كل الجلسات على جميع الأجهزة</button>`);
+  }catch(e){toast(e.message||'خطأ',1)}
+}
+async function hashAllPasswords(){
+  try{const j=await api('hashall');toast(j.msg||'تم التشفير 🔐');openSecurityCenter()}catch(e){toast(e.message||'خطأ',1)}
+}
+async function revokeAllSessions(){
+  if(!(await askConfirm('هيتم تسجيل خروج كل المشرفين على كل الأجهزة الأخرى فوراً (وجلستك الحالية هتتجدد). نكمل؟')))return;
+  try{
+    const j=await api('revokeall');
+    if(j.tok){
+      TOK=j.tok;
+      try{sessionStorage.setItem('fci_adm_tok',JSON.stringify({tok:TOK,name:ME,owner:OWNER,scope:''}))}catch(e){}
+    }
+    toast(j.msg||'تم إنهاء كل الجلسات ✅');openSecurityCenter();
+  }catch(e){toast(e.message||'خطأ',1)}
 }
 async function saveMaterial(){
   const link=safeUrl($('addLink').value.trim());
@@ -934,7 +992,7 @@ function gsRun(){
   const q=norm($('gsQ').value.trim());
   if(q.length<2){$('gsRes').innerHTML='<p style="color:#888;font-size:13px">اكتب حرفين على الأقل.</p>';return}
   const a=pubItems().filter(i=>norm(i.title+' '+i.subject+' '+(i.tags||'')+' '+(i.doctor||'')).includes(q)).slice(0,30);
-  $('gsRes').innerHTML=a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)}${m.dept&&m.dept!=='مشترك'?' • '+esc(m.dept):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${m.id}')">📂 مكانه</button></div></div>`).join(''):'<p>مفيش نتايج.</p>';
+  $('gsRes').innerHTML=a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)}${m.dept&&m.dept!=='مشترك'?' • '+esc(m.dept):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${safeId(m.id)}')">📂 مكانه</button></div></div>`).join(''):'<p>مفيش نتايج.</p>';
 }
 function goToItem(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
@@ -947,7 +1005,7 @@ function toggleSaved(id){
 }
 function openSaved(){
   const db=getDB(),a=ld('fci_saved',[]).map(id=>db.find(x=>x.id===id)).filter(Boolean);
-  tool(`<h3>🔖 المحفوظات</h3>${a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${m.id}')">📂</button><button class="btn btn-danger sm" onclick="toggleSaved('${m.id}');openSaved()">✕</button></div></div>`).join(''):'<p>لسه ما حفظتش حاجة. اضغط 🔖 جنب أي ملف.</p>'}`);
+  tool(`<h3>🔖 المحفوظات</h3>${a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${safeId(m.id)}')">📂</button><button class="btn btn-danger sm" onclick="toggleSaved('${safeId(m.id)}');openSaved()">✕</button></div></div>`).join(''):'<p>لسه ما حفظتش حاجة. اضغط 🔖 جنب أي ملف.</p>'}`);
 }
 function icsEsc(t){return String(t).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n')}
 function exportIcs(){
@@ -1071,7 +1129,7 @@ let ADMS=[];
 async function openAdmins(){
   try{
     const j=await api('adminlist');ADMS=j.admins;
-    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (6 حروف على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
+    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (8 حروف على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
   }catch(e){toast(e.message||'خطأ',1)}
 }
 function adminEdit(n){const a=ADMS[n];$('admN').value=a.name;$('admP').value='';$('admP').placeholder='سيب الباسورد فاضي لو مش هتغيّره';$('admR').value=a.role;$('admS').value=a.scope;$('admFormT').textContent='✏️ تعديل: '+a.name}
@@ -1130,7 +1188,26 @@ async function syncDown(){
   try{
     const j=await api('syncget',{code});let o;try{o=JSON.parse(j.sync)}catch(e){throw new Error('بيانات تالفة')}
     if(!(await askConfirm('هيتم استبدال بيانات الجهاز ده ببيانات الكود. نكمل؟')))return;
-    SYNC_KEYS.concat(SYNC_GPA).forEach(k=>{if(typeof o[k]==='string'&&o[k].length<45000){try{localStorage.setItem(k,o[k])}catch(e){}}});
+    const SAFE_ARR_KEYS=['fci_custom_sched','fci_attendance','fci_rich_gpa','fci_personal_tasks'];
+    SYNC_KEYS.concat(SYNC_GPA).forEach(k=>{
+      if(!Object.prototype.hasOwnProperty.call(o,k))return;
+      if(typeof o[k]!=='string'||o[k].length>=45000)return;
+      try{
+        let parsed=JSON.parse(o[k]);
+        if(SAFE_ARR_KEYS.includes(k)){
+          parsed=sanitizeLocalArr(parsed,'s_');
+          localStorage.setItem(k,JSON.stringify(parsed));
+        }else if(k==='fci_done'||k==='fci_saved'||k==='fci_recent'){
+          localStorage.setItem(k,JSON.stringify((Array.isArray(parsed)?parsed:[]).map(safeId).filter(Boolean).slice(0,500)));
+        }else if(k==='fci_notes'){
+          const cn={};
+          if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))Object.keys(parsed).forEach(nk=>{const sk=safeId(nk);if(sk&&typeof parsed[nk]==='string')cn[sk]=parsed[nk].slice(0,1000)});
+          localStorage.setItem(k,JSON.stringify(cn));
+        }else{
+          localStorage.setItem(k,JSON.stringify(parsed));
+        }
+      }catch(e){}
+    });
     try{localStorage.setItem('fci_sync_code',JSON.stringify(code))}catch(e){}
     toast('تم الاسترجاع ✅ بيعيد تحميل الصفحة...');setTimeout(()=>location.reload(),900);
   }catch(e){toast(e.message||'خطأ',1)}
@@ -1297,7 +1374,7 @@ function openMenu(){
     ['📲','تثبيت التطبيق على الهاتف','openInstall()']
   ].concat(isAdmin?[
     ['📈','إحصائيات الموقع','openDash()'],
-    ['🧾','سجل النشاط','openLog()'],
+    ...(OWNER?[['🧾','سجل النشاط','openLog()'],['🛡️','مركز الأمان','openSecurityCenter()']]:[]),
     ['🛠','إدارة الجدول (للأدمن)','openManage()']
   ]:[]).map(x=>`<button class="menu-btn" onclick="${x[2]}"><span>${x[0]}</span>${x[1]}</button>`).join('')}</div>`);
 }
@@ -1450,7 +1527,7 @@ function openSmartFixer(){
   tool(`<h3>🪄 مصحّح التصنيف الذكي (${FIX_LIST.length} ملف)</h3>
     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">الملفات دي أسماؤها بتدل على قسم مختلف عن القسم المحفوظة فيه حالياً:</p>
     <button type="button" class="btn btn-success" style="width:100%;margin-bottom:12px" onclick="applySmartFixAll()">⚡ تصحيح الكل تلقائياً (${FIX_LIST.length} ملف)</button>
-    ${Object.keys(byType).map(t=>`<h4 style="margin:10px 0 6px">${TYPE_ICONS[t]||'📁'} سيتم نقلها إلى «${esc(t)}» (${byType[t].length})</h4>`+byType[t].slice(0,25).map(x=>`<div class="ev"><div><b>${esc(x.i.title)}</b><br><small>${esc(x.i.subject)}</small><div class="fix-arrow"><span class="fix-old">${esc(x.i.type)}</span><span>←</span><span class="fix-new">${esc(x.sug)}</span></div></div><button type="button" class="btn sm" onclick="closeModal('toolModal');openEdit('${esc(x.i.id)}')">✏️</button></div>`).join('')).join('')}`);
+    ${Object.keys(byType).map(t=>`<h4 style="margin:10px 0 6px">${TYPE_ICONS[t]||'📁'} سيتم نقلها إلى «${esc(t)}» (${byType[t].length})</h4>`+byType[t].slice(0,25).map(x=>`<div class="ev"><div><b>${esc(x.i.title)}</b><br><small>${esc(x.i.subject)}</small><div class="fix-arrow"><span class="fix-old">${esc(x.i.type)}</span><span>←</span><span class="fix-new">${esc(x.sug)}</span></div></div><button type="button" class="btn sm" onclick="closeModal('toolModal');openEdit('${safeId(x.i.id)}')">✏️</button></div>`).join('')).join('')}`);
 }
 async function applySmartFixAll(){
   if(!FIX_LIST.length)return;
@@ -1484,7 +1561,7 @@ function openDuplicates(){
   tool(`<h3>♻️ ملفات مكررة (${dups.length})</h3>
     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">تقدر تنقل النسخ المكررة لسلة المحذوفات بضغطة واحدة (مع الاحتفاظ بالنسخة الأقدم).</p>
     ${DUP_IDS.length?`<button type="button" class="btn btn-danger" style="width:100%;margin-bottom:10px" onclick="deleteAllDups()">🗑️ نقل ${DUP_IDS.length} نسخة مكررة للسلة</button>`:''}
-    ${dups.slice(0,40).map(x=>`<div class="ev"><div><b>${esc(x.dup.title)}</b><br><small>${esc(x.dup.subject)} • ${esc(x.why)}</small></div><button type="button" class="btn btn-danger sm" onclick="deleteMat('${esc(x.dup.id)}');closeModal('toolModal')">🗑️</button></div>`).join('')}`);
+    ${dups.slice(0,40).map(x=>`<div class="ev"><div><b>${esc(x.dup.title)}</b><br><small>${esc(x.dup.subject)} • ${esc(x.why)}</small></div><button type="button" class="btn btn-danger sm" onclick="deleteMat('${safeId(x.dup.id)}');closeModal('toolModal')">🗑️</button></div>`).join('')}`);
 }
 async function deleteAllDups(){
   if(!DUP_IDS.length||!(await askConfirm('نقل '+DUP_IDS.length+' ملف مكرر لسلة المحذوفات؟')))return;
@@ -1538,7 +1615,7 @@ async function saveBulk(){
 }
 function openCopy(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
-  tool(`<h3>📋 نسخ الملف لمسار تاني</h3><small>${esc(m.title)}</small><div class="form-group" style="margin-top:8px"><label>النظام</label><select id="cpT" class="form-select">${opts(['عام','خاص'],m.track)}</select></div><div class="form-group"><label>القسم</label><select id="cpD" class="form-select">${opts(['مشترك'].concat(DEPTS),m.dept)}</select></div><div class="form-group"><label>الفرقة</label><select id="cpL" class="form-select">${opts(LEVELS,m.level)}</select></div><div class="form-group"><label>الفصل</label><select id="cpS" class="form-select">${opts(['الفصل الأول','الفصل الثاني'],m.semester)}</select></div><button class="btn" style="width:100%" onclick="doCopy('${m.id}')">نسخ</button>`);
+  tool(`<h3>📋 نسخ الملف لمسار تاني</h3><small>${esc(m.title)}</small><div class="form-group" style="margin-top:8px"><label>النظام</label><select id="cpT" class="form-select">${opts(['عام','خاص'],m.track)}</select></div><div class="form-group"><label>القسم</label><select id="cpD" class="form-select">${opts(['مشترك'].concat(DEPTS),m.dept)}</select></div><div class="form-group"><label>الفرقة</label><select id="cpL" class="form-select">${opts(LEVELS,m.level)}</select></div><div class="form-group"><label>الفصل</label><select id="cpS" class="form-select">${opts(['الفصل الأول','الفصل الثاني'],m.semester)}</select></div><button class="btn" style="width:100%" onclick="doCopy('${safeId(m.id)}')">نسخ</button>`);
 }
 function doCopy(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
@@ -1566,7 +1643,7 @@ function renderAdminFiles(){
   $('afCount').textContent=all.length+' ملف';
   $('afList').innerHTML=l.length?l.map(m=>{
     const can=OWNER||m.by===ME,sch=m.publishAt&&+m.publishAt>Date.now();
-    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${m.id}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${m.id}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${m.id}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${m.id}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
+    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${m.id}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${safeId(m.id)}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${safeId(m.id)}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${safeId(m.id)}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
   }).join(''):'<p style="text-align:center">لا توجد ملفات.</p>';
   $('afMore').style.display=all.length>AF.n?'block':'none';
 }
@@ -1608,7 +1685,7 @@ async function saveDriveImport(){
 }
 async function openHealth(){try{const j=await api('healthlist');showHealth(j.health)}catch(e){toast(e.message||'خطأ',1)}}
 function showHealth(a){
-  tool(`<h3>🩺 صحة الروابط</h3><p style="font-size:12px;margin:0 0 8px">الفحص الأسبوعي تلقائي لو فعّلت الأتمتة، وتقدر تفحص دفعة دلوقتي.</p><button class="btn btn-warning" style="width:100%;margin-bottom:8px" onclick="healthRun()">🔄 افحص 25 ملف الآن</button>${OWNER&&a.some(h=>/مش مشارك/.test(h.problem))?'<button class="btn btn-danger" style="width:100%;margin-bottom:8px" onclick="healFix()">🔓 افتح مشاركة الملفات المقفولة</button>':''}${a.length?a.map(h=>`<div class="ev"><div><b>${esc(h.title)}</b><br><small>${esc(h.subject)} • ${esc(h.problem)} • ${esc(h.at)}</small></div><button class="btn sm" onclick="closeModal('toolModal');openEdit('${esc(h.id)}')">✏️</button></div>`).join(''):'<p>مفيش روابط فيها مشاكل مسجلة ✅</p>'}`);
+  tool(`<h3>🩺 صحة الروابط</h3><p style="font-size:12px;margin:0 0 8px">الفحص الأسبوعي تلقائي لو فعّلت الأتمتة، وتقدر تفحص دفعة دلوقتي.</p><button class="btn btn-warning" style="width:100%;margin-bottom:8px" onclick="healthRun()">🔄 افحص 25 ملف الآن</button>${OWNER&&a.some(h=>/مش مشارك/.test(h.problem))?'<button class="btn btn-danger" style="width:100%;margin-bottom:8px" onclick="healFix()">🔓 افتح مشاركة الملفات المقفولة</button>':''}${a.length?a.map(h=>`<div class="ev"><div><b>${esc(h.title)}</b><br><small>${esc(h.subject)} • ${esc(h.problem)} • ${esc(h.at)}</small></div><button class="btn sm" onclick="closeModal('toolModal');openEdit('${safeId(h.id)}')">✏️</button></div>`).join(''):'<p>مفيش روابط فيها مشاكل مسجلة ✅</p>'}`);
 }
 async function healthRun(){toast('بيفحص...');try{const j=await api('healthrun');toast(j.msg||'تم');showHealth(j.health)}catch(e){toast(e.message||'خطأ',1)}}
 async function openTrash(){
@@ -1647,6 +1724,7 @@ function bootApp(){
   syncOnlineUI();
   window.addEventListener('offline',()=>{syncOnlineUI();toast('انقطع الإنترنت — يتم عرض النسخة المحفوظة 📡',1)});
   window.addEventListener('online',()=>{syncOnlineUI();toast('عاد الاتصال بالإنترنت ✅');refresh('force')});
+  const lastU=ld('fci_last_adm_user','');if(lastU&&$('adminUsername'))$('adminUsername').value=lastU;
   loadAnnouncement();
   updateAddDatalists();
   updatePomoUI();
