@@ -1,10 +1,10 @@
-// FCI-Materials Service Worker (v8 Fortress) — Fast Offline Support + Instant Updates
-const CACHE_NAME = 'fci-materials-v8';
+// FCI-Materials Service Worker (v9 AutoSync) — Fast Offline Support + Instant Updates
+const CACHE_NAME = 'fci-materials-v9';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=8',
-  './app.js?v=8',
+  './style.css?v=9',
+  './app.js?v=9',
   './manifest.webmanifest',
   './icon.svg',
   './icon-192.png',

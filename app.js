@@ -1289,14 +1289,62 @@ async function treeImport(){
   toast('خلّصت: '+doneCnt+' ملف'+(skip?' • اتخطّى '+skip:'')+(fail?' • فشل '+fail:'')+' ✅');
 }
 async function treeSyncNow(){if(await treeCollect())treeImport()}
-async function treeSaveCfg(){const root=$('trRoot').value.trim();if(!root)return toast('الصق رابط الفولدر',1);if(await act('treecfg',{root,defaults:trDefaults()}))loadTreeCfg()}
-async function treeClearCfg(){if((await askConfirm('تشيل المصدر التلقائي؟'))&&await act('treecfg',{clear:true}))loadTreeCfg()}
+async function treeSaveCfg(){
+  const root=$('trRoot').value.trim();
+  if(!root)return toast('الصق رابط الفولدر الأول',1);
+  if(await act('treecfg',{root,defaults:trDefaults()})){
+    $('trRoot').value='';
+    loadTreeCfg();
+  }
+}
+async function treeRemoveSource(id){
+  if((await askConfirm('تشيل الفولدر ده من المزامنة التلقائية؟ (الملفات الموجودة على الموقع مش هتتمسح)'))&&await act('treecfg',{removeId:id}))loadTreeCfg();
+}
+async function treeClearCfg(){
+  if((await askConfirm('تشيل كل الفولدرات المربوطة بالمزامنة التلقائية؟'))&&await act('treecfg',{clear:true}))loadTreeCfg();
+}
+async function runAutoSyncNow(){
+  const btn=$('autoSyncNowBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ جاري سحب الجديد...'}
+  try{
+    const res=await act('autosyncnow',{});
+    if(res)loadTreeCfg();
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 مزامنة الكل الآن'}
+  }
+}
 async function loadTreeCfg(){
   try{
-    const c=(await api('treecfgget')).cfg,d=c.defaults||{};
-    $('trInfo').innerHTML=c.root?`✅ مصدر تلقائي متفعّل (بيتزامن كل يوم لو فعّلت الأتمتة). آخر مزامنة: ${esc(c.last||'لسه')} <button class="btn btn-danger sm" onclick="treeClearCfg()">إلغاء</button>`:'مفيش مصدر تلقائي متحفظ.';
-    if(c.root&&!$('trRoot').value)$('trRoot').value='https://drive.google.com/drive/folders/'+c.root;
-    $('trTrack').value=d.track||'';$('trDept').value=d.dept||'';$('trLevel').value=d.level||'';$('trSem').value=d.semester||'';$('trSubj').value=d.subject||'';$('trRootSub').checked=!!d.rootAsSubject;
+    const c=(await api('treecfgget')).cfg||{};
+    const sources=Array.isArray(c.sources)?c.sources:[];
+    const iv=String(c.interval||'30');
+    const ivLbl={'15':'كل 15 دقيقة','30':'كل 30 دقيقة','60':'كل ساعة','360':'كل 6 ساعات','1440':'مرة يومياً'}[iv]||'كل 30 دقيقة';
+    if($('syncIntervalSel'))$('syncIntervalSel').value=iv;
+    const listEl=$('trSourcesList');
+    if(listEl){
+      if(!sources.length){
+        listEl.innerHTML='<div class="cat-empty-hint" style="padding:12px">مفيش فولدرات مربوطة لسه — الصق رابط الفولدر فوق واضغط «➕ ربط الفولدر للمزامنة التلقائية».</div>';
+      }else{
+        listEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px">📡 الفولدرات المربوطة تلقائياً (${sources.length}/15):</b><button type="button" class="btn btn-danger sm" onclick="treeClearCfg()">إزالة الكل</button></div>`+sources.map(s=>{
+          const d=s.defaults||{};
+          const meta=[d.track?trackLabel(d.track):'',d.dept,d.level,d.semester,d.subject].filter(Boolean).join(' • ')||'تصنيف تلقائي بالكامل من أسماء الفولدرات';
+          return `<div class="ev" style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;margin-bottom:6px">
+            <div>
+              <b>📁 ${esc(s.name||'فولدر درايف')}</b><br>
+              <small style="color:var(--text-muted)">${esc(meta)}</small>
+            </div>
+            <div class="action-links">
+              <a class="open-btn" href="https://drive.google.com/drive/folders/${encodeURIComponent(s.id)}" target="_blank" rel="noopener noreferrer">فتح ↗</a>
+              <button type="button" class="btn btn-danger sm" onclick="treeRemoveSource('${safeId(s.id)}')">🗑️</button>
+            </div>
+          </div>`;
+        }).join('');
+      }
+    }
+    const statusBadge=c.triggerActive
+      ?`<span style="color:var(--success-color);font-weight:800">🟢 الربط التلقائي شغّال (${esc(ivLbl)})</span>`
+      :`<span style="color:var(--danger-color);font-weight:800">🔴 الربط التلقائي غير مفعّل</span> — اضغط «🤖 تفعيل الربط التلقائي»`;
+    $('trInfo').innerHTML=statusBadge+(c.last?`<br>🕒 آخر مزامنة: <b>${esc(c.last)}</b>`:'');
   }catch(e){}
 }
 async function healFix(){if((await askConfirm('هيتم فتح المشاركة (أي حد معاه الرابط) لكل ملفات الدرايف اللي لقاها الفحص مقفولة. نكمل؟'))&&await act('healfix',{}))openHealth()}
@@ -1693,7 +1741,13 @@ async function openTrash(){
 }
 function tgSave(){act('tgset',{token:$('tgToken').value.trim(),chat:$('tgChat').value.trim(),site:$('tgSite').value.trim()},'تم الحفظ').then(ok=>{if(ok)$('tgToken').value=''})}
 function tgTest(){act('tgtest',{},'وصلت رسالة التجربة ✅')}
-async function installAuto(){if(await askConfirm('هيتفعّل: نسخ احتياطي يومي، ملخص أسبوعي، وفحص أسبوعي للروابط. نكمل؟'))act('installtriggers',{},'تم التفعيل')}
+async function installAuto(){
+  const iv=$('syncIntervalSel')?$('syncIntervalSel').value:'30';
+  const lbl={'15':'كل 15 دقيقة','30':'كل 30 دقيقة','60':'كل ساعة','360':'كل 6 ساعات','1440':'مرة يومياً'}[iv]||'كل 30 دقيقة';
+  if(await askConfirm('هيتفعّل الربط التلقائي مع درايف ('+lbl+') + نسخ احتياطي يومي + ملخص أسبوعي + فحص الروابط. نكمل؟')){
+    if(await act('installtriggers',{interval:iv}))loadTreeCfg();
+  }
+}
 function visitPing(){const t=new Date().toISOString().slice(0,10);if(hasApi()&&ld('fci_vday','')!==t){sv('fci_vday',t);api('visit').catch(()=>{})}}
 function visitsInto(){
   api('visitstats').then(j=>{
