@@ -102,8 +102,33 @@ $('levelBtns').innerHTML=LEVELS.map(l=>`<button class="btn" data-k="level" data-
 function fillAddDept(){$('addDept').innerHTML=opts(['مشترك'].concat(deptsOf($('addTrack').value)))}
 function autoDept(){if($('addTrack').value==='عام'&&COMMON_LEVELS.indexOf($('addLevel').value)>-1)$('addDept').value='مشترك'}
 fillAddDept();
-$('addTrack').addEventListener('change',()=>{fillAddDept();autoDept()});
-$('addLevel').addEventListener('change',autoDept);
+function saveLastAddPath(){
+  sv('fci_last_add_path',{
+    track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,
+    semester:$('addSemester').value,subject:$('addSubject').value.trim(),doctor:$('addDoctor').value.trim()
+  });
+}
+function restoreLastAddPath(){
+  const lp=ld('fci_last_add_path',null);if(!lp)return;
+  if(lp.track&&['عام','خاص'].includes(lp.track))$('addTrack').value=lp.track;
+  fillAddDept();
+  if(lp.level&&LEVELS.includes(lp.level))$('addLevel').value=lp.level;
+  if(lp.dept&&Array.from($('addDept').options).some(o=>o.value===lp.dept))$('addDept').value=lp.dept;
+  if(lp.semester&&['الفصل الأول','الفصل الثاني'].includes(lp.semester))$('addSemester').value=lp.semester;
+  if(lp.subject)$('addSubject').value=lp.subject;
+  if(lp.doctor)$('addDoctor').value=lp.doctor;
+}
+function updateAddDatalists(){
+  const db=getDB();
+  const subs=Array.from(new Set(db.map(i=>i.subject).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ar'));
+  const docs=Array.from(new Set(db.map(i=>i.doctor).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ar'));
+  if($('dlSubjects'))$('dlSubjects').innerHTML=subs.map(s=>`<option value="${esc(s)}">`).join('');
+  if($('dlDoctors'))$('dlDoctors').innerHTML=docs.map(d=>`<option value="${esc(d)}">`).join('');
+}
+$('addTrack').addEventListener('change',()=>{fillAddDept();autoDept();saveLastAddPath()});
+$('addLevel').addEventListener('change',()=>{autoDept();saveLastAddPath()});
+['addDept','addSemester'].forEach(id=>$(id).addEventListener('change',saveLastAddPath));
+['addSubject','addDoctor'].forEach(id=>$(id).addEventListener('change',saveLastAddPath));
 $('pathHint').textContent='الأقسام العامة: '+COMMON_LEVELS.join('، ')+' دراستها موحّدة لكل الطلاب (اختار «مشترك»)، وبعدها الطالب بيختار قسمه. البرامج الخاصة: اختار البرنامج.';
 $('addLevel').innerHTML=opts(LEVELS);
 $('addWeek').innerHTML=opts(WEEKS);$('editWeek').innerHTML=opts(WEEKS);
@@ -112,6 +137,7 @@ $('weekFilter').innerHTML='<option value="">كل الأسابيع</option>'+opts
 $('typeFilter').innerHTML='<option value="">كل الأنواع</option>'+opts(TYPES);
 $('addType').onchange=()=>{$('addDeadline').style.display=$('addType').value==='تكليفات'?'block':'none'};
 $('editType').innerHTML=opts(TYPES);$('editTrack').innerHTML=opts(['عام','خاص']);$('editDept').innerHTML=opts(['مشترك'].concat(DEPTS));$('editLevel').innerHTML=opts(LEVELS);$('editSem').innerHTML=opts(['الفصل الأول','الفصل الثاني']);
+restoreLastAddPath();
 
 /* ===== التنقل بين الأقسام الرئيسية الخمسة ===== */
 const ALL_MAIN_SECTIONS=['studentFlow','scheduleView','gpaView','studyView','adminLogin','adminDashboard'];
@@ -145,7 +171,7 @@ function quickSelectAI(){
   showResults('الفصل الأول');
   toast('تم فتح مسار برنامج الذكاء الاصطناعي — الفرقة الثانية ⚡');
 }
-function clearSavedPath(){try{localStorage.removeItem('fci_path')}catch(e){}activeSub=null;activeType=null;userPath={};resetTo('trackStep')}
+function clearSavedPath(){try{localStorage.removeItem('fci_path')}catch(e){}activeSub=null;activeType=null;QF='all';userPath={};resetTo('trackStep')}
 function goStep(n){document.querySelectorAll('.student-step').forEach(s=>s.hidden=true);$(n).hidden=false}
 function resetTo(n){activeSub=null;activeType=null;if(n==='trackStep')userPath={};goStep(n)}
 function showResults(sem){
@@ -285,6 +311,37 @@ $('addAttCourseForm').addEventListener('submit',e=>{
   renderScheduleHub();
   toast('تمت إضافة المادة لمتتبع الغياب');
 });
+function getPathSubjects(){
+  const p=userPath;
+  if(!p||!p.track||!p.level||!p.semester)return [];
+  const unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1;
+  const items=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now())));
+  return Array.from(new Set(items.map(i=>i.subject).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ar'));
+}
+function importPathCoursesToAttendance(){
+  const subs=getPathSubjects();
+  if(!subs.length)return toast('اختار مسارك الدراسي من صفحة المواد الأول (أو لا توجد مواد بعد)',1);
+  const have=new Set(attendanceList.map(a=>norm(a.course)));
+  let added=0;
+  subs.forEach((s,idx)=>{
+    if(!have.has(norm(s))){attendanceList.push({id:'att_'+Date.now()+'_'+idx,course:s,absences:0,max:4});have.add(norm(s));added++}
+  });
+  if(!added)return toast('كل مواد مسارك موجودة بالفعل في متتبع الغياب ✅');
+  sv('fci_attendance',attendanceList);renderScheduleHub();
+  toast('تم استيراد '+added+' مادة لمتتبع الغياب ⚡');
+}
+function importPathCoursesToGpa(){
+  const subs=getPathSubjects();
+  if(!subs.length)return toast('اختار مسارك الدراسي من صفحة المواد الأول (أو لا توجد مواد بعد)',1);
+  const have=new Set(gpaCoursesList.map(c=>norm(c.name)));
+  let added=0;
+  subs.forEach((s,idx)=>{
+    if(!have.has(norm(s))){gpaCoursesList.push({id:'gc_'+Date.now()+'_'+idx,name:s,hours:3,grade:'B (75-80)'});have.add(norm(s));added++}
+  });
+  if(!added)return toast('كل مواد مسارك موجودة بالفعل في حاسبة الـ GPA ✅');
+  sv('fci_rich_gpa',gpaCoursesList);renderGpaHub();
+  toast('تم استيراد '+added+' مادة لحاسبة الـ GPA ⚡');
+}
 
 /* ===== 3. منطق حاسبة الـ GPA والدرجات ===== */
 function getGpaGradeLabel(g){
@@ -481,6 +538,7 @@ function saveFileNote(id){
   closeModal('toolModal');
   if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('studyView').hidden)renderSavedFileNotesList();
+  if(RD_CUR&&RD_CUR.id===id)syncReaderUI();
   toast('تم حفظ ملاحظتك على الملف 📝');
 }
 function deleteFileNote(id){
@@ -490,6 +548,7 @@ function deleteFileNote(id){
   closeModal('toolModal');
   if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('studyView').hidden)renderSavedFileNotesList();
+  if(RD_CUR&&RD_CUR.id===id)syncReaderUI();
   toast('تم مسح الملاحظة');
 }
 function renderSavedFileNotesList(){
@@ -596,7 +655,38 @@ function renderReports(){
 }
 
 /* ===== عرض المواد والملفات ===== */
-let favs=ld('fci_favs',[]),done=ld('fci_done',[]),activeSub=null,activeType=null,Q='',W='',TF='';
+let favs=ld('fci_favs',[]),done=ld('fci_done',[]),activeSub=null,activeType=null,Q='',W='',TF='',QF='all';
+function setQuickFilter(f){
+  QF=f||'all';
+  document.querySelectorAll('#quickFilterBar .qf-pill').forEach(b=>b.classList.toggle('active',b.dataset.qf===QF));
+  render();
+}
+function trackRecent(id){
+  if(!id)return;
+  let arr=ld('fci_recent',[]).filter(x=>x!==id);
+  arr.unshift(id);
+  if(arr.length>4)arr=arr.slice(0,4);
+  sv('fci_recent',arr);
+}
+function clearRecent(){sv('fci_recent',[]);render()}
+function renderRecentStrip(all){
+  const el=$('recentStrip');if(!el)return;
+  const ids=ld('fci_recent',[]),map={};
+  all.forEach(i=>map[i.id]=i);
+  const rec=ids.map(id=>map[id]).filter(Boolean);
+  if(!rec.length){el.innerHTML='';return}
+  el.innerHTML=`<div class="recent-strip"><div class="recent-head"><span>🕒 كمّل مذاكرة (آخر ملفات فتحتها)</span><button type="button" class="recent-clear" onclick="clearRecent()">مسح ✕</button></div><div class="recent-chips">${rec.map(m=>`<button type="button" class="recent-chip" onclick="openReader('${esc(m.id)}')"><span class="rc-ic">${getIcon(m.viewLink)}</span><span class="rc-title">${esc(m.title)}</span><small>• ${esc(m.subject)}</small></button>`).join('')}</div></div>`;
+}
+function toggleAllCategoryDone(sub,type){
+  const p=userPath,unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1;
+  const ids=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&i.subject===sub&&i.type===type&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now())))).map(i=>i.id);
+  if(!ids.length)return;
+  const allDone=ids.every(id=>done.includes(id));
+  if(allDone){done=done.filter(id=>!ids.includes(id))}
+  else{ids.forEach(id=>{if(!done.includes(id))done.push(id)})}
+  sv('fci_done',done);render();
+  toast(allDone?'تم إلغاء تحديد ملفات القسم':'تم تحديد كل ملفات القسم كمكتمل ✔');
+}
 const TYPE_ICONS={'محاضرات':'🎓','سكاشن':'🧪','ملخصات':'📝','امتحانات سابقة':'📄','تكليفات':'📌'};
 const norm=t=>String(t||'').toLowerCase().replace(/[\u064B-\u065F\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
 $('searchBox').addEventListener('input',debounce(e=>{Q=norm(e.target.value.trim());render()},120));
@@ -607,9 +697,17 @@ function render(){
   const saved={},savedIds=ld('fci_saved',[]);document.querySelectorAll('#cards input').forEach(i=>saved[i.id]=i.value);
   const p=userPath,unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1,notes=ld('fci_notes',{});
   const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now()))));
+  const semDone=all.filter(i=>done.includes(i.id)).length,semPct=all.length?Math.round(semDone/all.length*100):0;
+  if($('semProg'))$('semProg').innerHTML=all.length?`<div class="sem-prog-box"><div class="sem-prog-head"><span>🎯 إنجازك في الترم: ${semDone} من ${all.length} ملف</span><span class="sem-prog-pct">${semPct}%</span></div><div class="pbar" style="margin:0"><i style="width:${semPct}%"></i></div></div>`:'';
+  renderRecentStrip(all);
   const soon=all.filter(i=>{if(i.type!=='تكليفات'||!i.deadline||done.includes(i.id))return false;const e=new Date(i.deadline+'T23:59:59'),n=new Date();return e>=n&&e-n<7*864e5});
   $('upcoming').innerHTML=evBanner()+(soon.length?`<div class="upcoming"><strong>⏰ تكليفات قريبة:</strong>${soon.map(i=>`<div>• ${esc(i.subject)} - ${esc(i.title)} ${dlBadge(i.deadline)}</div>`).join('')}</div>`:'');
+  document.querySelectorAll('#quickFilterBar .qf-pill').forEach(b=>b.classList.toggle('active',b.dataset.qf===QF));
   let db=all;
+  if(QF==='new')db=db.filter(i=>Date.now()-i.timestamp<7*864e5);
+  else if(QF==='todo')db=db.filter(i=>!done.includes(i.id));
+  else if(QF==='saved')db=db.filter(i=>savedIds.includes(i.id));
+  else if(QF==='noted')db=db.filter(i=>!!notes[i.id]);
   if(Q)db=db.filter(i=>norm(i.title+' '+i.subject+' '+(i.tags||'')+' '+(i.doctor||'')).includes(Q));
   if(W)db=db.filter(i=>i.week===W);
   if(TF)db=db.filter(i=>i.type===TF);
@@ -638,7 +736,8 @@ function render(){
       return h+'</div></div>';
     }
     const list=(g[sub][focusedType]||[]).slice().sort((a,b)=>(WEEKS.indexOf(a.week)-WEEKS.indexOf(b.week))||a.title.localeCompare(b.title,'ar',{numeric:true}));
-    h+=`<div class="cat-active-head"><span>${TYPE_ICONS[focusedType]||'📁'} ${esc(focusedType)} (${list.length})</span><button type="button" class="btn sm btn-danger" data-act="closeType">✕ إغلاق القسم</button></div>`;
+    const allCatDone=list.length&&list.every(m=>done.includes(m.id));
+    h+=`<div class="cat-active-head"><span>${TYPE_ICONS[focusedType]||'📁'} ${esc(focusedType)} (${list.length})</span><div style="display:flex;gap:6px;flex-wrap:wrap">${list.length?`<button type="button" class="btn sm ${allCatDone?'btn-ghost':'btn-success'}" data-act="doneAllCat" data-s="${esc(sub)}" data-t="${esc(focusedType)}">${allCatDone?'↺ إلغاء الكل':'✔ تحديد الكل'}</button>`:''}<button type="button" class="btn sm btn-danger" data-act="closeType">✕ إغلاق القسم</button></div></div>`;
     if(!list.length){
       h+=`<div class="cat-empty-hint">لا توجد ملفات في قسم «${esc(focusedType)}» حالياً.</div>`;
       return h+'</div></div>';
@@ -683,7 +782,7 @@ async function api(a,d={}){
 }
 function apply(j){
   if(!j||!j.items)return;DB=fixItems(j.items);REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);SCHED=j.schedule||SCHED;sv('fci_sched',SCHED);sv('fci_db',DB);sv('fci_ann',ANN);
-  renderNotif();loadAnnouncement();
+  renderNotif();loadAnnouncement();updateAddDatalists();
   if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('scheduleView').hidden)renderScheduleHub();
   if(!$('studyView').hidden)renderStudyHub();
@@ -712,12 +811,36 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()}
 function loadAnnouncement(){const b=$('globalAnnouncement');if(ANN){b.textContent='📢 '+ANN;b.style.display='block'}else b.style.display='none'}
 function saveAnnouncement(){act('ann',{text:$('announceInput').value.trim(),until:$('announceUntil').value},'تم النشر')}
 function clearAnnouncement(){act('ann',{text:''},'تم الحذف')}
+function applyAdminSessionUI(j){
+  ME=j.name;OWNER=!!j.owner;isAdmin=true;
+  $('adminHello').textContent='👤 '+ME+(OWNER?' • مالك':(j.scope?' • ممثل دفعة ('+j.scope.replace('|',' / ')+')':' • أدمن'));
+  document.querySelectorAll('.owner-only').forEach(e=>e.style.display=OWNER?'':'none');
+  $('adminBtn').style.display='none';$('logoutBtn').style.display='block';
+}
 async function checkLogin(){
   const p=$('adminPassword').value;if(!p)return;PASS=p;
-  try{const j=await api('login');ME=j.name;OWNER=!!j.owner;isAdmin=true;apply(j);$('adminHello').textContent='👤 '+ME+(OWNER?' • مالك':(j.scope?' • ممثل دفعة ('+j.scope.replace('|',' / ')+')':' • أدمن'));document.querySelectorAll('.owner-only').forEach(e=>e.style.display=OWNER?'':'none');$('adminPassword').value='';$('adminBtn').style.display='none';$('logoutBtn').style.display='block';showSection('adminDashboard');toast('أهلاً '+ME+' 👋')}
-  catch(e){PASS='';toast(e.message||'خطأ',1)}
+  try{
+    const j=await api('login');
+    applyAdminSessionUI(j);apply(j);
+    try{sessionStorage.setItem('fci_adm_sess',JSON.stringify({pass:PASS,name:ME,owner:OWNER,scope:j.scope||''}))}catch(e){}
+    $('adminPassword').value='';showSection('adminDashboard');toast('أهلاً '+ME+' 👋');
+  }catch(e){PASS='';toast(e.message||'خطأ',1)}
 }
-function logoutAdmin(){isAdmin=false;PASS='';ME='';OWNER=false;$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome();refresh('force')}
+async function restoreAdminSession(){
+  let s=null;try{s=JSON.parse(sessionStorage.getItem('fci_adm_sess'))}catch(e){}
+  if(!s||!s.pass)return false;
+  PASS=s.pass;
+  try{
+    const j=await api('login');
+    applyAdminSessionUI(j);apply(j);
+    return true;
+  }catch(e){PASS='';try{sessionStorage.removeItem('fci_adm_sess')}catch(x){}return false}
+}
+function logoutAdmin(){
+  isAdmin=false;PASS='';ME='';OWNER=false;
+  try{sessionStorage.removeItem('fci_adm_sess')}catch(e){}
+  $('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome();refresh('force');
+}
 async function saveMaterial(){
   const link=safeUrl($('addLink').value.trim());
   const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value,tags:$('addTags').value.trim(),doctor:$('addDoctor').value.trim(),publishAt:$('addPub').value?String(new Date($('addPub').value).getTime()):''};
@@ -725,6 +848,7 @@ async function saveMaterial(){
   if(!link)return toast('الرابط لازم يبدأ بـ https://',1);
   const dp=dupOf(link,item.title,item.subject);
   if(dp&&!(await askConfirm('فيه ملف مشابه بالفعل: «'+dp.title+'» ('+dp.subject+'). تضيفه برضه؟')))return;
+  saveLastAddPath();
   if(await act('add',{item},'تم النشر!'))['addTitle','addLink','addDeadline','addTags','addPub'].forEach(i=>$(i).value='');
 }
 async function deleteMat(id){if(await askConfirm('حذف هذا الملف؟'))act('del',{id},'مُسح')}
@@ -744,7 +868,8 @@ $('reportsList').addEventListener('click',e=>{const b=e.target.closest('[data-ri
 $('cards').addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el)return;
   const a=el.dataset.act,id=el.dataset.id,s=el.dataset.s;
-  if(a==='view'||a==='dl'){api('bump',{id,f:a==='dl'?'downloads':'views'}).catch(()=>{});return}
+  if(a==='view'||a==='dl'){trackRecent(id);api('bump',{id,f:a==='dl'?'downloads':'views'}).catch(()=>{});return}
+  if(a==='doneAllCat'){e.stopPropagation();return toggleAllCategoryDone(s,el.dataset.t)}
   if(a==='closeSub'){e.stopPropagation();activeSub=null;activeType=null;return render()}
   if(a==='closeType'){e.stopPropagation();activeType=null;if(TF){TF='';$('typeFilter').value=''}return render()}
   if(a==='togType'){e.stopPropagation();if(TF&&TF!==s){TF='';$('typeFilter').value=''}activeType=(activeType===s)?null:s;return render()}
@@ -907,7 +1032,7 @@ function openSubjects(){
   const g={};
   getDB().forEach(i=>{const k=[i.track,i.dept,i.level,i.semester,i.subject].join('|'),o=g[k]=g[k]||{i,ids:[],doc:''};o.ids.push(i.id);if(i.doctor)o.doc=i.doctor});
   SUBS=Object.keys(g).map(k=>g[k]).sort((a,b)=>String(a.i.level).localeCompare(String(b.i.level),'ar')||String(a.i.subject).localeCompare(String(b.i.subject),'ar'));
-  tool(`<h3>📚 إدارة المواد</h3><p style="font-size:12px;margin:0 0 8px">غيّر اسم مادة في كل ملفاتها بضغطة، أو اكتب اسم الدكتور لكل الملفات. لو كتبت اسم مادة موجودة في نفس المسار هتتدمج معاها.</p>${SUBS.map((o,n)=>`<div class="ev"><div><b>${esc(o.i.subject)}</b> <small>(${o.ids.length} ملف)</small><br><small>${esc(o.i.level)} • ${esc(o.i.dept)} • ${esc(o.i.semester)}${o.doc?' • 👨‍🏫 '+esc(o.doc):''}</small></div><div class="action-links"><button class="btn sm" onclick="subRename(${n})">✏️ الاسم</button><button class="btn sm" onclick="subDoctor(${n})" aria-label="الدكتور">👨‍🏫</button></div></div>`).join('')||'<p>مفيش مواد.</p>'}`);
+  tool(`<h3>📚 إدارة المواد</h3><p style="font-size:12px;margin:0 0 8px">غيّر اسم مادة في كل ملفاتها بضغطة، أو اكتب اسم الدكتور لكل الملفات. لو كتبت اسم مادة موجودة في نفس المسار هتتدمج معاها.</p>${SUBS.map((o,n)=>`<div class="ev"><div><b>${esc(o.i.subject)}</b> <small>(${o.ids.length} ملف)</small><br><small>${esc(o.i.level)} • ${esc(o.i.dept)} • ${esc(o.i.semester)}${o.doc?' • 👨‍🏫 '+esc(o.doc):''}</small></div><div class="action-links"><button class="btn sm" onclick="subRename(${n})">✏️ الاسم</button><button class="btn sm" onclick="subDoctor(${n})" aria-label="الدكتور">👨‍🏫</button><button class="btn btn-ghost sm" onclick="openSubQr(${n})" aria-label="QR">📱</button></div></div>`).join('')||'<p>مفيش مواد.</p>'}`);
 }
 async function subRename(n){const o=SUBS[n],v=await askPrompt('✏️ الاسم الجديد للمادة',o.i.subject,'اكتب اسم المادة...');if(v===null||!v.trim()||v.trim()===o.i.subject)return;if(await act('bulkedit',{ids:o.ids,fields:{subject:v.trim()}}))openSubjects()}
 async function subDoctor(n){const o=SUBS[n],v=await askPrompt('👨‍🏫 اسم الدكتور لكل ملفات المادة',o.doc,'اكتب اسم الدكتور...');if(v===null)return;if(await act('bulkedit',{ids:o.ids,fields:{doctor:v.trim()}}))openSubjects()}
@@ -946,10 +1071,20 @@ let CTR=[];
 async function openContribs(){
   try{
     const j=await api('contriblist');CTR=j.contrib;
-    tool(`<h3>📬 المساهمات (${CTR.length})</h3>${CTR.length?CTR.map((c,n)=>`<div class="acard"><b>${esc(c.title)}</b><br><small>${esc(c.subject)} • ${esc(c.type)} • ${esc(c.week)} • ${esc(c.level)} • ${esc(c.dept)} • ${esc(c.semester)}<br>🤝 ${esc(c.contributor)} • ${esc(c.at)}</small><div class="action-links" style="margin-top:6px"><a class="open-btn" href="${esc(c.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" data-ca="${n}">✅ نشر</button><button class="btn btn-danger sm" data-cr="${esc(c.id)}">❌ رفض</button></div></div>`).join(''):'<p>مفيش مساهمات مستنية ✅</p>'}`);
+    tool(`<h3>📬 المساهمات (${CTR.length})</h3>${CTR.length?CTR.map((c,n)=>`<div class="acard"><b>${esc(c.title)}</b><br><small>${esc(c.subject)} • ${esc(c.type)} • ${esc(c.week)} • ${esc(c.level)} • ${esc(c.dept)} • ${esc(c.semester)}<br>🤝 ${esc(c.contributor)} • ${esc(c.at)}</small><div class="action-links" style="margin-top:8px"><a class="open-btn" href="${esc(c.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm btn-success" data-ca="${n}">✅ نشر</button><button class="btn sm btn-warning" onclick="openContribEdit(${n})">✏️ تعديل ونشر</button><button class="btn btn-danger sm" data-cr="${esc(c.id)}">❌ رفض</button></div></div>`).join(''):'<p>مفيش مساهمات مستنية ✅</p>'}`);
   }catch(e){toast(e.message||'خطأ',1)}
 }
-const SYNC_KEYS=['fci_done','fci_saved','fci_favs','fci_notes','fci_path','fci_personal_tasks','fci_quick_notes','fci_attendance','fci_custom_sched','fci_study_stats'],SYNC_GPA=['fci_rich_gpa','fci_gpa_meta'],SYNC_ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function openContribEdit(n){
+  const c=CTR[n];if(!c)return;
+  tool(`<h3>✏️ مراجعة وتعديل المساهمة</h3><small style="color:var(--text-muted)">مُرسلة من: ${esc(c.contributor)} • ${esc(c.level)} / ${esc(c.semester)}</small><div class="form-group" style="margin-top:10px"><label>العنوان</label><input id="ceT" class="form-input" value="${esc(c.title)}"></div><div class="form-group"><label>المادة</label><input id="ceS" class="form-input" value="${esc(c.subject)}"></div><div class="form-grid"><div class="form-group"><label>القسم</label><select id="ceD" class="form-select">${opts(['مشترك'].concat(DEPTS),c.dept||'مشترك')}</select></div><div class="form-group"><label>النوع</label><select id="ceY" class="form-select">${opts(TYPES,c.type||'محاضرات')}</select></div></div><div class="form-group"><label>الأسبوع</label><select id="ceW" class="form-select">${opts(WEEKS,c.week||'عام')}</select></div><div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn btn-success" style="flex:1" onclick="submitContribEdit(${n})">✅ حفظ ونشر</button><button type="button" class="btn btn-ghost" onclick="openContribs()">رجوع</button></div>`);
+}
+async function submitContribEdit(n){
+  const c=CTR[n];if(!c)return;
+  const fields={title:$('ceT').value.trim(),subject:$('ceS').value.trim(),dept:$('ceD').value,type:$('ceY').value,week:$('ceW').value};
+  if(!fields.title||!fields.subject)return toast('اكتب العنوان والمادة',1);
+  if(await act('contribapprove',{id:c.id,fields}))openContribs();
+}
+const SYNC_KEYS=['fci_done','fci_saved','fci_favs','fci_notes','fci_path','fci_personal_tasks','fci_quick_notes','fci_attendance','fci_custom_sched','fci_study_stats','fci_recent'],SYNC_GPA=['fci_rich_gpa','fci_gpa_meta'],SYNC_ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function syncNewCode(){const a=new Uint32Array(10);crypto.getRandomValues(a);return Array.from(a,x=>SYNC_ALPHA[x%32]).join('')}
 function syncCollect(g){const o={};SYNC_KEYS.concat(g?SYNC_GPA:[]).forEach(k=>{try{const v=localStorage.getItem(k);if(v!==null)o[k]=v}catch(e){}});return o}
 function openSync(){
@@ -1093,6 +1228,10 @@ document.addEventListener('keydown',e=>{
   if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){
     e.preventDefault();openGlobalSearch();return;
   }
+  if($('readModal').style.display==='flex'){
+    if(e.key==='ArrowLeft'){e.preventDefault();stepReader(1);return}
+    if(e.key==='ArrowRight'){e.preventDefault();stepReader(-1);return}
+  }
   if(e.key!=='Escape')return;
   closeNotif();
   if($('confirmModal').style.display==='flex')return resolveConfirm(false);
@@ -1115,6 +1254,7 @@ function openMenu(){
     ['🧮','حاسبة المعدل التراكمي والدرجات','closeModal(\'toolModal\');switchMainView(\'gpaView\')'],
     ['⏱️','إدارة التسليمات ومؤقت المذاكرة','closeModal(\'toolModal\');switchMainView(\'studyView\')'],
     ['🔍','بحث في كل الملفات','openGlobalSearch()'],['🗓','خطة مذاكرة ذكية','openPlanner()'],['➕','ساهم بملف','openContribute()'],['☁️','مزامنة بياناتي','openSync()'],['🔖','المحفوظات','openSaved()'],['📆','تصدير المواعيد للتقويم','exportIcs()'],['💬','طلب مادة / اقتراح للإدارة','openReq()'],
+    ['📱','مشاركة الموقع بكود QR','openQrModal()'],
     ['📲','تثبيت التطبيق على الهاتف','openInstall()']
   ].concat(isAdmin?[
     ['📈','إحصائيات الموقع','openDash()'],
@@ -1180,13 +1320,137 @@ function readerUrl(l){
   m=l.match(/(?:youtu\.be\/|v=)([\w-]{11})/);
   return m?'https://www.youtube.com/embed/'+m[1]:'';
 }
-function openReader(id){
-  const m=getDB().find(x=>x.id===id);if(!m)return;const u=readerUrl(m.viewLink);
-  if(!u){window.open(m.viewLink,'_blank','noopener');return}
-  api('bump',{id,f:'views'}).catch(()=>{});
-  $('rdT').textContent=m.title;$('rdF').src=u;$('readModal').style.display='flex';
+let RD_LIST=[],RD_IDX=-1,RD_CUR=null;
+function syncReaderUI(){
+  if(!RD_CUR)return;
+  const m=RD_CUR,isDone=done.includes(m.id),notes=ld('fci_notes',{});
+  $('rdT').textContent=m.title;
+  $('rdDl').href=getDL(m.viewLink);
+  $('rdExt').href=m.viewLink;
+  $('rdDone').classList.toggle('on',isDone);
+  $('rdNote').classList.toggle('on',!!notes[m.id]);
+  const pos=$('rdPos');
+  if(RD_LIST.length>1&&RD_IDX>=0){pos.textContent=`${RD_IDX+1} / ${RD_LIST.length}`;pos.hidden=false}
+  else pos.hidden=true;
+  $('rdPrev').disabled=RD_IDX<=0;
+  $('rdNext').disabled=RD_IDX<0||RD_IDX>=RD_LIST.length-1;
 }
-function closeReader(){$('rdF').src='about:blank';$('readModal').style.display='none'}
+function openReader(id){
+  const m=getDB().find(x=>x.id===id);if(!m)return;
+  trackRecent(id);
+  const u=readerUrl(m.viewLink);
+  if(!u){window.open(m.viewLink,'_blank','noopener');if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();return}
+  RD_CUR=m;
+  RD_LIST=getDB().filter(i=>i.track===m.track&&i.level===m.level&&i.semester===m.semester&&i.subject===m.subject&&i.type===m.type&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now())))).sort((a,b)=>(WEEKS.indexOf(a.week)-WEEKS.indexOf(b.week))||a.title.localeCompare(b.title,'ar',{numeric:true}));
+  RD_IDX=RD_LIST.findIndex(x=>x.id===id);
+  api('bump',{id,f:'views'}).catch(()=>{});
+  syncReaderUI();
+  $('rdF').src=u;$('readModal').style.display='flex';
+  if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
+}
+function stepReader(delta){
+  const nx=RD_IDX+delta;
+  if(nx<0||nx>=RD_LIST.length)return;
+  openReader(RD_LIST[nx].id);
+}
+function toggleReaderDone(){
+  if(!RD_CUR)return;
+  const added=toggleIn(done,RD_CUR.id,'fci_done');
+  syncReaderUI();
+  if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
+  toast(added?'اتعلّم كمكتمل ✔':'اتشالت علامة الإنجاز');
+}
+function openReaderNote(){
+  if(!RD_CUR)return;
+  openNote(RD_CUR.id);
+}
+function closeReader(){$('rdF').src='about:blank';$('readModal').style.display='none';RD_CUR=null}
+
+/* ===== QR Code للموقع وللمواد ===== */
+function openQrModal(url,label){
+  const targetUrl=url||(location.origin+location.pathname);
+  const title=label||'FCI-Materials — جامعة أسيوط';
+  const qrImg='https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=14&data='+encodeURIComponent(targetUrl);
+  tool(`<h3>📱 كود QR للمشاركة</h3>
+    <div class="qr-card">
+      <div class="qr-frame">
+        <img id="qrPreviewImg" src="${esc(qrImg)}" alt="QR Code" crossorigin="anonymous">
+        <small>${esc(title)}</small>
+      </div>
+      <code dir="ltr" style="font-size:11.5px;word-break:break-all;color:var(--text-muted)">${esc(targetUrl)}</code>
+      <div class="row" style="width:100%;justify-content:center">
+        <a class="btn" href="${esc(qrImg)}" download="fci-qr.png" target="_blank" rel="noopener noreferrer">⬇️ تحميل صورة QR</a>
+        <button type="button" class="btn btn-warning" onclick="copyText('${esc(targetUrl).replace(/'/g,"\'")}')">📋 نسخ الرابط</button>
+      </div>
+    </div>`);
+}
+function openSubQr(n){
+  const o=SUBS[n];if(!o)return;
+  const i=o.i,u=location.origin+location.pathname+'#go='+encodeURIComponent([i.track,i.dept,i.level,i.semester,i.subject].join('|'));
+  openQrModal(u,i.subject+' — '+i.level);
+}
+
+/* ===== مصحّح التصنيف الذكي (للأدمن) ===== */
+function guessClientType(title){
+  const n=norm(title);
+  if(/exam|امتحان|اختبار|midterm|ميدتيرم|final|فاينال|فاينل|quiz|كويز|banks?|بنك|بنوك|questions?|اسئله|سؤال/.test(n))return 'امتحانات سابقة';
+  if(/assignment|assign|تكليف|واجب|homework|hw|project|بروجكت|مشروع|شيت|sheet|task|تاسك/.test(n))return 'تكليفات';
+  if(/section|sec\d*|سكشن|سكاشن|سيكشن|labs?|لاب|معمل|معامل|tutorial|تمرين|تمارين|عملي/.test(n))return 'سكاشن';
+  if(/summary|summaries|ملخص|تلخيص|مراجعه|مراجعات|review|notes|نوتس|مذكره|مذكرات|مختصر|زتونه/.test(n))return 'ملخصات';
+  return '';
+}
+let FIX_LIST=[];
+function openSmartFixer(){
+  FIX_LIST=getDB().filter(i=>OWNER||i.by===ME).map(i=>{
+    const sug=guessClientType(i.title);
+    return (sug&&sug!==i.type)?{i,sug}:null;
+  }).filter(Boolean);
+  if(!FIX_LIST.length)return tool('<h3>🪄 فحص وتصحيح التصنيف</h3><p>ممتاز! كل الملفات متصنفة في أقسامها الصح ✅</p>');
+  const byType={};
+  FIX_LIST.forEach(x=>{(byType[x.sug]=byType[x.sug]||[]).push(x)});
+  tool(`<h3>🪄 مصحّح التصنيف الذكي (${FIX_LIST.length} ملف)</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">الملفات دي أسماؤها بتدل على قسم مختلف عن القسم المحفوظة فيه حالياً:</p>
+    <button type="button" class="btn btn-success" style="width:100%;margin-bottom:12px" onclick="applySmartFixAll()">⚡ تصحيح الكل تلقائياً (${FIX_LIST.length} ملف)</button>
+    ${Object.keys(byType).map(t=>`<h4 style="margin:10px 0 6px">${TYPE_ICONS[t]||'📁'} سيتم نقلها إلى «${esc(t)}» (${byType[t].length})</h4>`+byType[t].slice(0,25).map(x=>`<div class="ev"><div><b>${esc(x.i.title)}</b><br><small>${esc(x.i.subject)}</small><div class="fix-arrow"><span class="fix-old">${esc(x.i.type)}</span><span>←</span><span class="fix-new">${esc(x.sug)}</span></div></div><button type="button" class="btn sm" onclick="closeModal('toolModal');openEdit('${esc(x.i.id)}')">✏️</button></div>`).join('')).join('')}`);
+}
+async function applySmartFixAll(){
+  if(!FIX_LIST.length)return;
+  if(!(await askConfirm('هيتم تصحيح تصنيف '+FIX_LIST.length+' ملف ونقلهم لأقسامهم المناسبة. نكمل؟')))return;
+  const groups={};
+  FIX_LIST.forEach(x=>{(groups[x.sug]=groups[x.sug]||[]).push(x.i.id)});
+  let total=0;
+  for(const t of Object.keys(groups)){
+    const res=await act('bulkedit',{ids:groups[t],fields:{type:t}});
+    if(res)total+=groups[t].length;
+  }
+  closeModal('toolModal');
+  toast('تم تصحيح تصنيف '+total+' ملف ✅');
+}
+
+/* ===== كاشف الملفات المكررة (للأدمن) ===== */
+let DUP_IDS=[];
+function openDuplicates(){
+  const db=getDB().slice().sort((a,b)=>a.timestamp-b.timestamp);
+  const seenLink={},seenName={},dups=[];
+  db.forEach(i=>{
+    const m=String(i.viewLink||'').match(/\/d\/([\w-]+)/)||String(i.viewLink||'').match(/[?&]id=([\w-]+)/);
+    const keyL=m?('id:'+m[1]):('u:'+i.viewLink);
+    const keyN=[i.track,i.dept,i.level,i.semester,norm(i.subject),norm(i.title)].join('|');
+    if(seenLink[keyL])dups.push({dup:i,orig:seenLink[keyL],why:'نفس الرابط'});
+    else if(seenName[keyN])dups.push({dup:i,orig:seenName[keyN],why:'نفس الاسم والمادة'});
+    else{seenLink[keyL]=i;seenName[keyN]=i}
+  });
+  DUP_IDS=dups.filter(x=>OWNER||x.dup.by===ME).map(x=>x.dup.id);
+  if(!dups.length)return tool('<h3>♻️ كشف الملفات المكررة</h3><p>مفيش أي ملفات مكررة في المنصة ✅</p>');
+  tool(`<h3>♻️ ملفات مكررة (${dups.length})</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">تقدر تنقل النسخ المكررة لسلة المحذوفات بضغطة واحدة (مع الاحتفاظ بالنسخة الأقدم).</p>
+    ${DUP_IDS.length?`<button type="button" class="btn btn-danger" style="width:100%;margin-bottom:10px" onclick="deleteAllDups()">🗑️ نقل ${DUP_IDS.length} نسخة مكررة للسلة</button>`:''}
+    ${dups.slice(0,40).map(x=>`<div class="ev"><div><b>${esc(x.dup.title)}</b><br><small>${esc(x.dup.subject)} • ${esc(x.why)}</small></div><button type="button" class="btn btn-danger sm" onclick="deleteMat('${esc(x.dup.id)}');closeModal('toolModal')">🗑️</button></div>`).join('')}`);
+}
+async function deleteAllDups(){
+  if(!DUP_IDS.length||!(await askConfirm('نقل '+DUP_IDS.length+' ملف مكرر لسلة المحذوفات؟')))return;
+  if(await act('bulkdel',{ids:DUP_IDS}))closeModal('toolModal');
+}
 
 /* مشاركة مادة برابط مباشر */
 function shareSub(sub){
@@ -1324,13 +1588,18 @@ function bootApp(){
   if(_appBooted)return;
   _appBooted=true;
   setTimeout(()=>{if($('splashScreen')){$('splashScreen').style.opacity=0;setTimeout(()=>{if($('splashScreen'))$('splashScreen').remove()},350)}},260);
+  const syncOnlineUI=()=>{const b=$('offlineBanner');if(b)b.classList.toggle('show',!navigator.onLine)};
+  syncOnlineUI();
+  window.addEventListener('offline',()=>{syncOnlineUI();toast('انقطع الإنترنت — يتم عرض النسخة المحفوظة 📡',1)});
+  window.addEventListener('online',()=>{syncOnlineUI();toast('عاد الاتصال بالإنترنت ✅');refresh('force')});
   loadAnnouncement();
+  updateAddDatalists();
   updatePomoUI();
   goHome();
   applyHash();
   if(!ld('fci_seen',0))sv('fci_seen',Date.now());
   renderNotif();
-  refresh('force').then(visitPing);
+  restoreAdminSession().then(restored=>{if(!restored)refresh('force').then(visitPing)});
   window.addEventListener('scroll',()=>{
     const b=$('scrollTopBtn');
     if(b)b.classList.toggle('show',window.scrollY>340);

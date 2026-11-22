@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div id="bg" aria-hidden="true"><div class="bg-dots"></div></div>
@@ -31,6 +31,7 @@
   </div>
 
   <div id="globalAnnouncement" class="announcement-bar" role="alert"></div>
+  <div id="offlineBanner" class="offline-banner" role="status">📡 لا يوجد اتصال بالإنترنت حالياً — يتم عرض آخر نسخة محفوظة على جهازك</div>
   <div id="toast-container" aria-live="polite"></div>
 
   <header class="site-header" id="siteHeader">
@@ -74,8 +75,19 @@
   <div id="readModal" class="modal-overlay">
     <div class="reader">
       <div class="reader-bar">
-        <b id="rdT"></b>
-        <button type="button" onclick="closeReader()" aria-label="إغلاق">✕</button>
+        <div class="reader-title-wrap">
+          <b id="rdT"></b>
+          <span id="rdPos" class="reader-pos" hidden></span>
+        </div>
+        <div class="reader-tools">
+          <button type="button" id="rdPrev" class="rd-btn" onclick="stepReader(-1)" title="الملف السابق (السهم الأيمن)">▶ <span class="rd-lbl">السابق</span></button>
+          <button type="button" id="rdNext" class="rd-btn" onclick="stepReader(1)" title="الملف التالي (السهم الأيسر)"><span class="rd-lbl">التالي</span> ◀</button>
+          <button type="button" id="rdDone" class="rd-btn" onclick="toggleReaderDone()" title="تحديد كمكتمل">✔ <span class="rd-lbl">تم</span></button>
+          <button type="button" id="rdNote" class="rd-btn" onclick="openReaderNote()" title="ملاحظة على الملف">📝</button>
+          <a id="rdDl" class="rd-btn" href="#" target="_blank" rel="noopener noreferrer" title="تحميل مباشر">⬇</a>
+          <a id="rdExt" class="rd-btn" href="#" target="_blank" rel="noopener noreferrer" title="فتح في نافذة جديدة">↗</a>
+          <button type="button" class="rd-btn close-x" onclick="closeReader()" aria-label="إغلاق">✕</button>
+        </div>
       </div>
       <iframe id="rdF" title="عارض الملف" allowfullscreen></iframe>
     </div>
@@ -213,11 +225,20 @@
           </div>
         </div>
         <h2>موادك الدراسية 📚</h2>
+        <div id="semProg"></div>
+        <div id="recentStrip"></div>
         <div id="upcoming"></div>
         <div class="filters">
           <input type="search" id="searchBox" class="form-input" placeholder="🔍 ابحث عن مادة أو ملف أو دكتور..." aria-label="بحث">
           <select id="weekFilter" class="form-select" style="max-width:165px" aria-label="الأسبوع"></select>
           <select id="typeFilter" class="form-select" style="max-width:165px" aria-label="النوع"></select>
+        </div>
+        <div id="quickFilterBar" class="qfilter-bar" role="group" aria-label="فلاتر سريعة">
+          <button type="button" class="qf-pill active" data-qf="all" onclick="setQuickFilter('all')">✨ الكل</button>
+          <button type="button" class="qf-pill" data-qf="new" onclick="setQuickFilter('new')">🆕 جديد الأسبوع</button>
+          <button type="button" class="qf-pill" data-qf="todo" onclick="setQuickFilter('todo')">⏳ لم يكتمل بعد</button>
+          <button type="button" class="qf-pill" data-qf="saved" onclick="setQuickFilter('saved')">🔖 المحفوظات</button>
+          <button type="button" class="qf-pill" data-qf="noted" onclick="setQuickFilter('noted')">📝 عليه ملاحظة</button>
         </div>
         <p style="color:var(--text-muted);font-size:12px;margin:8px 0 0">اضغط على أي مادة لفتحها في تاب مستقل، ثم اختار القسم (محاضرات، سكاشن، ملخصات...) • ⭐ تثبيت • ✔ تم • 📝 ملاحظة</p>
         <div id="cards" class="card-grid"></div>
@@ -262,7 +283,10 @@
         </div>
 
         <div class="acard" style="margin-bottom:0">
-          <h3>🚨 متتبع الغياب والإنذارات</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <h3 style="margin:0">🚨 متتبع الغياب والإنذارات</h3>
+            <button type="button" class="btn btn-warning sm" onclick="importPathCoursesToAttendance()">⚡ استيراد مواد ترمي</button>
+          </div>
           <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px">سجّل غياباتك في كل مادة لتجنب تجاوز الحد الأقصى (4 غيابات بدون عذر قبل الحرمان).</p>
           <form id="addAttCourseForm" class="row" style="margin-bottom:12px">
             <input type="text" id="newAttCourseName" class="form-input" required placeholder="أضف مادة لمتتبع الغياب...">
@@ -284,7 +308,10 @@
         <div class="acard" style="margin-bottom:0">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
             <h3 style="margin:0">📈 مقررات الفصل الدراسي الحالي</h3>
-            <button type="button" class="btn sm" onclick="addRichGpaCourse()">➕ إضافة مادة</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button type="button" class="btn btn-warning sm" onclick="importPathCoursesToGpa()">⚡ استيراد مواد ترمي</button>
+              <button type="button" class="btn sm" onclick="addRichGpaCourse()">➕ إضافة مادة</button>
+            </div>
           </div>
 
           <div class="form-grid" style="margin-bottom:12px">
@@ -479,6 +506,7 @@
           <button type="button" class="tile" onclick="openGaps()"><span>🕳</span>المحتوى الناقص</button>
           <button type="button" class="tile" onclick="openDash()"><span>📈</span>إحصائيات</button>
           <button type="button" class="tile" onclick="exportCsv()"><span>📤</span>تصدير CSV</button>
+          <button type="button" class="tile" onclick="openQrModal()"><span>📱</span>QR للموقع</button>
         </div>
       </div>
 
@@ -491,8 +519,10 @@
             <select id="addDept" class="form-select"></select>
             <select id="addLevel" class="form-select"></select>
             <select id="addSemester" class="form-select"><option value="الفصل الأول">الفصل الأول</option><option value="الفصل الثاني">الفصل الثاني</option></select>
-            <input type="text" id="addSubject" class="form-input" placeholder="اسم المادة">
-            <input type="text" id="addDoctor" class="form-input" placeholder="اسم الدكتور (اختياري)">
+            <input type="text" id="addSubject" list="dlSubjects" class="form-input" placeholder="اسم المادة" autocomplete="off">
+            <datalist id="dlSubjects"></datalist>
+            <input type="text" id="addDoctor" list="dlDoctors" class="form-input" placeholder="اسم الدكتور (اختياري)" autocomplete="off">
+            <datalist id="dlDoctors"></datalist>
           </div>
         </div>
         <div class="acard">
@@ -526,7 +556,9 @@
 
       <div id="ap-files" class="apanel" hidden>
         <div class="row" style="margin-bottom:8px">
-          <button type="button" class="btn sm" onclick="openSubjects()">📚 إدارة المواد (تغيير الاسم والدكتور)</button>
+          <button type="button" class="btn sm" onclick="openSubjects()">📚 إدارة المواد</button>
+          <button type="button" class="btn btn-warning sm" onclick="openSmartFixer()">🪄 فحص وتصحيح التصنيف</button>
+          <button type="button" class="btn btn-ghost sm" onclick="openDuplicates()">♻️ كشف المكررات</button>
         </div>
         <div class="filters" style="margin-top:0">
           <input type="search" id="afSearch" class="form-input" placeholder="🔍 ابحث بالعنوان أو المادة أو الدكتور..." aria-label="بحث في الملفات">
@@ -650,6 +682,6 @@
 
   <button type="button" id="scrollTopBtn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى" aria-label="الأعلى">↑</button>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
