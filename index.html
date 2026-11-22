@@ -15,10 +15,12 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div id="bg" aria-hidden="true"><div class="bg-dots"></div></div>
@@ -462,7 +464,7 @@
       <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">خاص بمشرفي المنصة وممثلي الدفعات</p>
       <div class="form-group" style="max-width:340px;margin:0 auto">
         <input type="password" id="adminPassword" class="form-input" placeholder="كلمة المرور..." style="text-align:center">
-        <button type="button" class="btn" onclick="checkLogin()" style="width:100%;margin-top:14px">دخول لوحة التحكم</button>
+        <button type="button" id="adminLoginBtn" class="btn" onclick="checkLogin()" style="width:100%;margin-top:14px">دخول لوحة التحكم</button>
       </div>
     </section>
 
@@ -682,6 +684,6 @@
 
   <button type="button" id="scrollTopBtn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى" aria-label="الأعلى">↑</button>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

@@ -780,8 +780,22 @@ async function api(a,d={}){
   try{j=JSON.parse(txt)}catch(e){throw new Error('السيرفر رجّع رد غير متوقع — تأكد من تشغيل authorize() وعمل New Deployment في Apps Script')}
   if(j.error)throw new Error(j.error);return j;
 }
+function syncLocalAdminCounts(counts){
+  const db=getDB();
+  ADM_CNT.rep=getReps().length;
+  ADM_CNT.sch=db.filter(i=>i.publishAt&&+i.publishAt>Date.now()).length;
+  ADM_CNT.hid=db.filter(i=>i.hidden).length;
+  ADM_CNT.com=db.reduce((a,i)=>a+(i.comments||[]).length,0);
+  if(counts){
+    ADM_CNT.req=counts.req;ADM_CNT.hl=counts.hl;ADM_CNT.ct=counts.ct;
+    ADM_CNT.at=Date.now();
+  }
+  const tot=(ADM_CNT.rep||0)+(ADM_CNT.req||0)+(ADM_CNT.ct||0);
+  if($('repBadge'))$('repBadge').textContent=tot||'';
+}
 function apply(j){
   if(!j||!j.items)return;DB=fixItems(j.items);REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);SCHED=j.schedule||SCHED;sv('fci_sched',SCHED);sv('fci_db',DB);sv('fci_ann',ANN);
+  if(j.counts)syncLocalAdminCounts(j.counts);
   renderNotif();loadAnnouncement();updateAddDatalists();
   if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('scheduleView').hidden)renderScheduleHub();
@@ -817,24 +831,36 @@ function applyAdminSessionUI(j){
   document.querySelectorAll('.owner-only').forEach(e=>e.style.display=OWNER?'':'none');
   $('adminBtn').style.display='none';$('logoutBtn').style.display='block';
 }
+let _loggingIn=false;
 async function checkLogin(){
-  const p=$('adminPassword').value;if(!p)return;PASS=p;
+  if(_loggingIn)return;
+  const p=$('adminPassword').value;if(!p)return;
+  const btn=$('adminLoginBtn');
+  _loggingIn=true;PASS=p;
+  if(btn){btn.disabled=true;btn.textContent='⏳ جاري تسجيل الدخول...'}
   try{
     const j=await api('login');
     applyAdminSessionUI(j);apply(j);
     try{sessionStorage.setItem('fci_adm_sess',JSON.stringify({pass:PASS,name:ME,owner:OWNER,scope:j.scope||''}))}catch(e){}
     $('adminPassword').value='';showSection('adminDashboard');toast('أهلاً '+ME+' 👋');
   }catch(e){PASS='';toast(e.message||'خطأ',1)}
+  finally{_loggingIn=false;if(btn){btn.disabled=false;btn.textContent='دخول لوحة التحكم'}}
 }
 async function restoreAdminSession(){
   let s=null;try{s=JSON.parse(sessionStorage.getItem('fci_adm_sess'))}catch(e){}
   if(!s||!s.pass)return false;
   PASS=s.pass;
+  applyAdminSessionUI(s);
   try{
     const j=await api('login');
     applyAdminSessionUI(j);apply(j);
     return true;
-  }catch(e){PASS='';try{sessionStorage.removeItem('fci_adm_sess')}catch(x){}return false}
+  }catch(e){
+    isAdmin=false;PASS='';ME='';OWNER=false;
+    $('adminBtn').style.display='block';$('logoutBtn').style.display='none';
+    try{sessionStorage.removeItem('fci_adm_sess')}catch(x){}
+    return false;
+  }
 }
 function logoutAdmin(){
   isAdmin=false;PASS='';ME='';OWNER=false;
@@ -992,15 +1018,14 @@ async function bulkMoveGo(){
   if(!Object.keys(f).length)return toast('اختار حاجة تتغيّر',1);
   if(await act('bulkedit',{ids:selIds(),fields:f})){closeModal('toolModal');bulkClear()}
 }
-const ADM_CNT={};
-async function refreshCounts(){
-  const db=getDB();
-  ADM_CNT.rep=getReps().length;ADM_CNT.sch=db.filter(i=>i.publishAt&&+i.publishAt>Date.now()).length;ADM_CNT.hid=db.filter(i=>i.hidden).length;
-  ADM_CNT.com=db.reduce((a,i)=>a+(i.comments||[]).length,0);
-  try{ADM_CNT.req=(await api('reqlist')).requests.filter(r=>r.status==='جديد').length}catch(e){ADM_CNT.req=null}
-  try{ADM_CNT.hl=(await api('healthlist')).health.length}catch(e){ADM_CNT.hl=null}
-  try{ADM_CNT.ct=(await api('contriblist')).contrib.length}catch(e){ADM_CNT.ct=null}
-  const tot=(ADM_CNT.rep||0)+(ADM_CNT.req||0)+(ADM_CNT.ct||0);$('repBadge').textContent=tot||'';
+const ADM_CNT={at:0};
+async function refreshCounts(force){
+  syncLocalAdminCounts();
+  if(!force&&ADM_CNT.at&&Date.now()-ADM_CNT.at<45000)return ADM_CNT;
+  try{
+    const j=await api('admincounts');
+    if(j&&j.counts)syncLocalAdminCounts(j.counts);
+  }catch(e){}
   return ADM_CNT;
 }
 async function loadStudentsTab(){
@@ -1129,23 +1154,31 @@ function openPlanner(){
   tool(`<h3>🗓 خطة مذاكرة ذكية</h3><p style="font-size:12px;margin:0 0 8px">بتتحسب من مواعيد الامتحانات اللي الإدارة ضايفاها وملفات موادك اللي لسه ما علّمتش عليها ✔.</p><div class="row"><label style="font-size:12px">دقايق للملف<input id="plMpf" type="number" class="form-input" value="${c.mpf}" onchange="planSet()"></label><label style="font-size:12px">ساعات المذاكرة يومياً<input id="plHrs" type="number" step="0.5" class="form-input" value="${c.hrs}" onchange="planSet()"></label></div>${status?'<p><b>'+status+'</b></p>':''}${rows.length?rows.map(r=>`<div class="acard"><b>${esc(r.e.subject)}</b> — ${esc(r.e.title)} <span class="countdown-badge">${r.left} يوم للمذاكرة</span><br><small>${r.rem.length} ملف متبقي من ${r.files.length}${r.per?' • النهاردة: '+r.per+' ملف':' • خلّصت ✅'}</small>${r.rem.slice(0,r.per).map(i=>`<div class="ev"><span>${esc(i.title)}</span><a class="open-btn btn sm" href="${esc(i.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a></div>`).join('')}</div>`).join(''):'<p>مفيش امتحانات قادمة عليها اسم مادة. اطلب من الإدارة تضيف المواعيد.</p>'}`);
 }
 /* ===== المنظّم الذكي لدرايف (للمالك) ===== */
-let TR={files:[],truncated:false};
+let TR={files:[],truncated:false,rootId:''};
 function trDefaults(){return {track:$('trTrack').value,dept:$('trDept').value,level:$('trLevel').value,semester:$('trSem').value,subject:$('trSubj').value.trim(),rootAsSubject:$('trRootSub').checked}}
 (function(){const o=a=>'<option value="">— تلقائي —</option>'+opts(a);$('trTrack').innerHTML=o(['عام','خاص']);$('trDept').innerHTML=o(['مشترك'].concat(DEPTS));$('trLevel').innerHTML=o(LEVELS);$('trSem').innerHTML=o(['الفصل الأول','الفصل الثاني'])})();
+function showDriveProgress(title,sub,pct){
+  if(!$('dpBar')){
+    tool(`<h3>${esc(title)}</h3><p id="dpSub" style="font-size:13px;color:var(--text-muted);margin:0 0 10px">${esc(sub)}</p><div class="pbar"><i id="dpBar" style="width:${pct}%"></i></div>`);
+  }else{
+    $('dpSub').textContent=sub;
+    $('dpBar').style.width=pct+'%';
+  }
+}
 async function treeCollect(){
   const root=$('trRoot').value.trim();if(!root){toast('الصق رابط الفولدر الرئيسي',1);return false}
-  toast('بيفحص الفولدر... ممكن ياخد دقيقة');
-  TR={files:[],truncated:false};let stack=null,seen=null,guard=0;
+  showDriveProgress('🔍 جاري فحص فولدر درايف...','بيقرأ الفولدرات والملفات...',18);
+  TR={files:[],truncated:false,rootId:''};let stack=null,seen=null,rootId='',guard=0;
   try{
     for(;;){
-      const j=await api('treescan',{root:stack?'':root,stack,seen,defaults:trDefaults()});
-      TR.files=TR.files.concat(j.files||[]);stack=j.stack;seen=j.seen;
+      const j=await api('treescan',{root:stack?'':root,stack,seen,rootId,defaults:trDefaults()});
+      TR.files=TR.files.concat(j.files||[]);stack=j.stack;seen=j.seen;if(j.rootId)rootId=TR.rootId=j.rootId;
+      showDriveProgress('🔍 جاري فحص فولدر درايف...',`تم فحص ${TR.files.length} ملف...`,j.done?100:Math.min(92,25+guard*12));
       if(j.done)break;
-      if(++guard>40||TR.files.length>=1500){TR.truncated=true;break}
-      toast('فحصت '+TR.files.length+' ملف لحد دلوقتي...');
+      if(++guard>40||TR.files.length>=2000){TR.truncated=true;break}
     }
     return true;
-  }catch(e){toast(e.message||'خطأ',1);return false}
+  }catch(e){closeModal('toolModal');toast(e.message||'خطأ',1);return false}
 }
 async function treeScan(){if(await treeCollect())showTreePlan()}
 function showTreePlan(){
@@ -1158,19 +1191,25 @@ async function treeImport(){
   const items=TR.files.filter(f=>f.ok&&!f.exists);
   if(!items.length)return toast('مفيش ملفات جديدة جاهزة',1);
   if(!(await askConfirm('هيتم استيراد '+items.length+' ملف وفتح مشاركتها لأي حد معاه الرابط. نكمل؟')))return;
-  let done=0,skip=0,fail=0;const subs=new Set();
-  for(let i=0;i<items.length;i+=12){
-    const part=items.slice(i,i+12);
+  showDriveProgress('⚡ جاري الاستيراد السريع...',`0 / ${items.length} ملف`,8);
+  let doneCnt=0,skip=0,fail=0;const subs=new Set(),CHUNK=80;
+  for(let i=0;i<items.length;i+=CHUNK){
+    const part=items.slice(i,i+CHUNK);
     try{
-      const j=await api('treebatch',{items:part.map(f=>({id:f.id,fields:f.fields})),quiet:true});
-      apply(j);
-      done+=(j.imported??part.length);skip+=(j.skipped||0);fail+=(j.failed||0);
+      const payload=part.map(f=>({id:f.id,name:f.name,viewLink:f.viewLink,downloadLink:f.downloadLink,fromShortcut:!!f.fromShortcut,fields:f.fields}));
+      const j=await api('treebatch',{items:payload,rootId:i===0?TR.rootId:'',fast:true,quiet:true});
+      doneCnt+=(j.imported??part.length);skip+=(j.skipped||0);fail+=(j.failed||0);
       part.forEach(f=>subs.add(f.fields.subject));
+      const pct=Math.min(96,Math.round(((i+part.length)/items.length)*95));
+      showDriveProgress('⚡ جاري الاستيراد السريع...',`اتستورد ${doneCnt} من ${items.length} ملف...`,pct);
     }catch(e){fail+=(items.length-i);toast(e.message||'خطأ',1);break}
-    toast('اتستورد '+done+' من '+items.length+'...');
   }
-  if(done)api('treesummary',{n:done,subjects:Array.from(subs)}).catch(()=>{});
-  closeModal('toolModal');toast('خلّصت: '+done+' ملف'+(skip?' • اتخطّى '+skip:'')+(fail?' • فشل '+fail:'')+' ✅');
+  if(doneCnt){
+    api('treesummary',{n:doneCnt,subjects:Array.from(subs)}).catch(()=>{});
+    await refresh('force');
+  }
+  closeModal('toolModal');
+  toast('خلّصت: '+doneCnt+' ملف'+(skip?' • اتخطّى '+skip:'')+(fail?' • فشل '+fail:'')+' ✅');
 }
 async function treeSyncNow(){if(await treeCollect())treeImport()}
 async function treeSaveCfg(){const root=$('trRoot').value.trim();if(!root)return toast('الصق رابط الفولدر',1);if(await act('treecfg',{root,defaults:trDefaults()}))loadTreeCfg()}
@@ -1368,7 +1407,7 @@ function closeReader(){$('rdF').src='about:blank';$('readModal').style.display='
 
 /* ===== QR Code للموقع وللمواد ===== */
 function openQrModal(url,label){
-  const targetUrl=url||(location.origin+location.pathname);
+  const targetUrl=url||(location.origin+location.pathname);window._lastQrUrl=targetUrl;
   const title=label||'FCI-Materials — جامعة أسيوط';
   const qrImg='https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=14&data='+encodeURIComponent(targetUrl);
   tool(`<h3>📱 كود QR للمشاركة</h3>
@@ -1380,7 +1419,7 @@ function openQrModal(url,label){
       <code dir="ltr" style="font-size:11.5px;word-break:break-all;color:var(--text-muted)">${esc(targetUrl)}</code>
       <div class="row" style="width:100%;justify-content:center">
         <a class="btn" href="${esc(qrImg)}" download="fci-qr.png" target="_blank" rel="noopener noreferrer">⬇️ تحميل صورة QR</a>
-        <button type="button" class="btn btn-warning" onclick="copyText('${esc(targetUrl).replace(/'/g,"\'")}')">📋 نسخ الرابط</button>
+        <button type="button" class="btn btn-warning" onclick="copyText(window._lastQrUrl)">📋 نسخ الرابط</button>
       </div>
     </div>`);
 }
@@ -1393,9 +1432,9 @@ function openSubQr(n){
 /* ===== مصحّح التصنيف الذكي (للأدمن) ===== */
 function guessClientType(title){
   const n=norm(title);
-  if(/exam|امتحان|اختبار|midterm|ميدتيرم|final|فاينال|فاينل|quiz|كويز|banks?|بنك|بنوك|questions?|اسئله|سؤال/.test(n))return 'امتحانات سابقة';
-  if(/assignment|assign|تكليف|واجب|homework|hw|project|بروجكت|مشروع|شيت|sheet|task|تاسك/.test(n))return 'تكليفات';
-  if(/section|sec\d*|سكشن|سكاشن|سيكشن|labs?|لاب|معمل|معامل|tutorial|تمرين|تمارين|عملي/.test(n))return 'سكاشن';
+  if(/exam|امتحان|اختبار|midterm|ميدتيرم|final|فاينال|فاينل|quiz|كويز|\bbanks?\b|بنك|بنوك|questions?|اسئله|سؤال/.test(n))return 'امتحانات سابقة';
+  if(/assignment|assign|تكليف|واجب|homework|\bhw\b|project|بروجكت|مشروع|شيت|sheet|task|تاسك/.test(n))return 'تكليفات';
+  if(/section|\bsec\d*\b|سكشن|سكاشن|سيكشن|\blabs?\b|لاب|معمل|معامل|tutorial|تمرين|تمارين|عملي/.test(n))return 'سكاشن';
   if(/summary|summaries|ملخص|تلخيص|مراجعه|مراجعات|review|notes|نوتس|مذكره|مذكرات|مختصر|زتونه/.test(n))return 'ملخصات';
   return '';
 }
@@ -1548,8 +1587,24 @@ async function saveDriveImport(){
   if(!folder)return toast('الصق رابط الفولدر',1);
   if(!base.subject)return toast('اكتب اسم المادة في الكروت اللي فوق',1);
   if(!(await askConfirm('هيتم استيراد ملفات الفولدر لمادة «'+base.subject+'»'+($('driveShare').checked?' وفتح مشاركتها لأي حد معاه الرابط':'')+'. نكمل؟')))return;
-  toast('بيستورد... ممكن ياخد نص دقيقة');
-  const res=await act('driveimport',{folder,base,auto:$('driveAuto').checked,share:$('driveShare').checked});if(res&&!res.hasMore)$('driveFolder').value='';
+  saveLastAddPath();
+  showDriveProgress('📥 جاري استيراد فولدر المادة...','بيقرأ الملفات ويفتح المشاركة...',20);
+  let totalImp=0,totalSkip=0,more=true,round=0;
+  try{
+    while(more&&round<6){
+      round++;
+      const j=await api('driveimport',{folder,base,auto:$('driveAuto').checked,share:$('driveShare').checked,fast:true});
+      totalImp+=(j.imported||0);totalSkip+=(j.skipped||0);more=!!j.hasMore;
+      showDriveProgress('📥 جاري استيراد فولدر المادة...',`اتستورد ${totalImp} ملف حتى الآن...`,more?Math.min(92,25+round*15):100);
+    }
+    if(totalImp)await refresh('force');
+    if(!more)$('driveFolder').value='';
+    closeModal('toolModal');
+    toast('تم استيراد '+totalImp+' ملف'+(totalSkip?' • اتخطّى '+totalSkip+' موجود':'')+(more?' • فيه ملفات زيادة اضغط تاني':'')+' ✅');
+  }catch(e){
+    closeModal('toolModal');
+    toast(e.message||'خطأ في الاستيراد',1);
+  }
 }
 async function openHealth(){try{const j=await api('healthlist');showHealth(j.health)}catch(e){toast(e.message||'خطأ',1)}}
 function showHealth(a){
@@ -1587,7 +1642,7 @@ let _appBooted=false;
 function bootApp(){
   if(_appBooted)return;
   _appBooted=true;
-  setTimeout(()=>{if($('splashScreen')){$('splashScreen').style.opacity=0;setTimeout(()=>{if($('splashScreen'))$('splashScreen').remove()},350)}},260);
+  const sp=$('splashScreen');if(sp){if(DB.length){sp.remove()}else{setTimeout(()=>{sp.style.opacity=0;setTimeout(()=>sp.remove(),250)},180)}}
   const syncOnlineUI=()=>{const b=$('offlineBanner');if(b)b.classList.toggle('show',!navigator.onLine)};
   syncOnlineUI();
   window.addEventListener('offline',()=>{syncOnlineUI();toast('انقطع الإنترنت — يتم عرض النسخة المحفوظة 📡',1)});

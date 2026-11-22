@@ -1,10 +1,10 @@
-// FCI-Materials Service Worker (v6) — Fast Offline Support + Instant Updates
-const CACHE_NAME = 'fci-materials-v6';
+// FCI-Materials Service Worker (v7) — Fast Offline Support + Instant Updates
+const CACHE_NAME = 'fci-materials-v7';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=5',
-  './app.js?v=5',
+  './style.css?v=6',
+  './app.js?v=6',
   './manifest.webmanifest',
   './icon.svg',
   './icon-192.png',
