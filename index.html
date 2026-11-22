@@ -683,6 +683,7 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
   <div class="form-group"><label>الفرقة</label><select id="editLevel" class="form-select"></select></div>
   <div class="form-group"><label>الفصل</label><select id="editSem" class="form-select"></select></div>
   <div class="form-group"><label>الوسوم</label><input type="text" id="editTags" class="form-input"></div>
+  <div class="form-group"><label>تاريخ التسليم (للتكليفات)</label><input type="date" id="editDeadline" class="form-input"></div>
   <div class="form-group"><label>اسم الدكتور</label><input type="text" id="editDoctor" class="form-input"></div>
   <div style="display:flex;gap:10px"><button class="btn" style="flex:1" onclick="submitEdit()">حفظ</button><button class="btn btn-danger" style="flex:1" onclick="closeModal('editModal')">إلغاء</button></div>
 </div></div>
@@ -1254,7 +1255,7 @@ function updateStats(){
 }
 function openEdit(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
-  $('editId').value=id;$('editSubject').value=m.subject;$('editTitle').value=m.title;$('editLink').value=m.viewLink;$('editWeek').value=m.week||'عام';$('editType').value=m.type;$('editTrack').value=m.track;$('editDept').value=m.dept;$('editLevel').value=m.level;$('editSem').value=m.semester;$('editTags').value=m.tags||'';$('editDoctor').value=m.doctor||'';$('editModal').style.display='flex';
+  $('editId').value=id;$('editSubject').value=m.subject;$('editTitle').value=m.title;$('editLink').value=m.viewLink;$('editWeek').value=m.week||'عام';$('editType').value=m.type;$('editTrack').value=m.track;$('editDept').value=m.dept;$('editLevel').value=m.level;$('editSem').value=m.semester;$('editTags').value=m.tags||'';$('editDoctor').value=m.doctor||'';$('editDeadline').value=m.deadline||'';$('editModal').style.display='flex';
 }
 function exportBackup(){
   const b=new Blob([JSON.stringify({db:getDB(),reports:getReps(),ann:ld('fci_ann','')},null,1)],{type:'application/json'});
@@ -1273,7 +1274,7 @@ $('weekFilter').addEventListener('change',e=>{W=e.target.value;render()});
 $('typeFilter').addEventListener('change',e=>{TF=e.target.value;render()});
 
 function render(){
-  const saved={};document.querySelectorAll('#cards input').forEach(i=>saved[i.id]=i.value);
+  const saved={},savedIds=ld('fci_saved',[]);document.querySelectorAll('#cards input').forEach(i=>saved[i.id]=i.value);
   const p=userPath,unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1,notes=ld('fci_notes',{});
   const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now()))));
   const soon=all.filter(i=>{if(i.type!=='تكليفات'||!i.deadline||done.includes(i.id))return false;const e=new Date(i.deadline+'T23:59:59'),n=new Date();return e>=n&&e-n<7*864e5});
@@ -1303,7 +1304,7 @@ function render(){
 <button class="done-btn ${dn2?'on':''}" data-act="done" data-id="${m.id}" aria-label="تم">✔</button>
 <button class="report-btn" data-act="rep" data-id="${m.id}" aria-label="إبلاغ">⚠</button>
 <button class="open-btn" data-act="read" data-id="${m.id}" aria-label="قراءة">📖</button>
-<button class="note-btn save-btn ${saved.indexOf(m.id)>-1?'on':''}" data-act="save" data-id="${m.id}" aria-label="حفظ">🔖</button>
+<button class="note-btn save-btn ${savedIds.indexOf(m.id)>-1?'on':''}" data-act="save" data-id="${m.id}" aria-label="حفظ">🔖</button>
 <button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${m.id}" aria-label="ملاحظة">📝</button>
 <button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
 <a href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer" class="open-btn" data-act="view" data-id="${m.id}">عرض</a>
@@ -1330,7 +1331,9 @@ const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
   const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:a,pass:PASS,...d})});
-  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+  const txt=await r.text();let j;
+  try{j=JSON.parse(txt)}catch(e){throw new Error('السيرفر رجّع رد غير متوقع — تأكد من تشغيل authorize() وعمل New Deployment في Apps Script')}
+  if(j.error)throw new Error(j.error);return j;
 }
 function apply(j){
   if(!j||!j.items)return;DB=fixItems(j.items);REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);SCHED=j.schedule||SCHED;sv('fci_sched',SCHED);sv('fci_db',DB);sv('fci_ann',ANN);
@@ -1340,21 +1343,26 @@ function apply(j){
   if(!$('studyView').hidden)renderStudyHub();
   if(!$('adminDashboard').hidden){updateStats();renderReports();if(!$('ap-files').hidden)renderAdminFiles()}
 }
+let lastRefreshAt=0;
 async function refresh(manual){
-  try{if(!hasApi())throw new Error('لسه مفيش رابط API');apply(await (await fetch(API)).json());if(manual===true)toast('تم التحديث ✅')}
-  catch(e){if(manual===true)toast('تعذر الاتصال، يتم عرض آخر نسخة محفوظة',1)}
+  if(manual!==true&&manual!=='force'&&Date.now()-lastRefreshAt<120000)return;
+  try{
+    if(!hasApi())throw new Error('لسه مفيش رابط API');
+    const j=(isAdmin&&PASS)?await api('adminsync'):await (await fetch(API)).json();
+    lastRefreshAt=Date.now();apply(j);if(manual===true)toast('تم التحديث ✅');
+  }catch(e){if(manual===true)toast('تعذر الاتصال، يتم عرض آخر نسخة محفوظة',1)}
 }
-async function act(a,d,msg){try{const j=await api(a,d);apply(j);if(j.msg||msg)toast(j.msg||msg);return true}catch(e){toast(e.message||'خطأ في الاتصال',1);return false}}
+async function act(a,d,msg){try{const j=await api(a,d);apply(j);if(j.msg||msg)toast(j.msg||msg);return j}catch(e){toast(e.message||'خطأ في الاتصال',1);return false}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 function loadAnnouncement(){const b=$('globalAnnouncement');if(ANN){b.textContent='📢 '+ANN;b.style.display='block'}else b.style.display='none'}
 function saveAnnouncement(){act('ann',{text:$('announceInput').value.trim(),until:$('announceUntil').value},'تم النشر')}
 function clearAnnouncement(){act('ann',{text:''},'تم الحذف')}
 async function checkLogin(){
   const p=$('adminPassword').value;if(!p)return;PASS=p;
-  try{const j=await api('login');ME=j.name;OWNER=!!j.owner;isAdmin=true;$('adminHello').textContent='👤 '+ME+(OWNER?' • مالك':(j.scope?' • ممثل دفعة ('+j.scope.replace('|',' / ')+')':' • أدمن'));document.querySelectorAll('.owner-only').forEach(e=>e.style.display=OWNER?'':'none');$('adminPassword').value='';$('adminBtn').style.display='none';$('logoutBtn').style.display='block';showSection('adminDashboard');toast('أهلاً '+ME+' 👋')}
+  try{const j=await api('login');ME=j.name;OWNER=!!j.owner;isAdmin=true;apply(j);$('adminHello').textContent='👤 '+ME+(OWNER?' • مالك':(j.scope?' • ممثل دفعة ('+j.scope.replace('|',' / ')+')':' • أدمن'));document.querySelectorAll('.owner-only').forEach(e=>e.style.display=OWNER?'':'none');$('adminPassword').value='';$('adminBtn').style.display='none';$('logoutBtn').style.display='block';showSection('adminDashboard');toast('أهلاً '+ME+' 👋')}
   catch(e){PASS='';toast(e.message||'خطأ',1)}
 }
-function logoutAdmin(){isAdmin=false;PASS='';ME='';OWNER=false;$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome()}
+function logoutAdmin(){isAdmin=false;PASS='';ME='';OWNER=false;$('adminBtn').style.display='block';$('logoutBtn').style.display='none';goHome();refresh('force')}
 async function saveMaterial(){
   const link=safeUrl($('addLink').value.trim());
   const item={track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value,subject:$('addSubject').value.trim(),week:$('addWeek').value,type:$('addType').value,title:$('addTitle').value.trim(),viewLink:link,downloadLink:getDL(link),deadline:$('addDeadline').value,tags:$('addTags').value.trim(),doctor:$('addDoctor').value.trim(),publishAt:$('addPub').value?String(new Date($('addPub').value).getTime()):''};
@@ -1369,7 +1377,7 @@ async function clearAllData(){if(await askConfirm('تصفير كلي؟ (اعمل
 async function submitEdit(){
   const id=$('editId').value,t=$('editTitle').value.trim(),sb=$('editSubject').value.trim(),l=safeUrl($('editLink').value.trim());
   if(!t||!sb||!l)return toast('تأكد من الحقول والرابط',1);
-  if(await act('edit',{id,fields:{title:t,subject:sb,viewLink:l,downloadLink:getDL(l),week:$('editWeek').value,type:$('editType').value,track:$('editTrack').value,dept:$('editDept').value,level:$('editLevel').value,semester:$('editSem').value,tags:$('editTags').value.trim(),doctor:$('editDoctor').value.trim()}},'عُدل'))closeModal('editModal');
+  if(await act('edit',{id,fields:{title:t,subject:sb,viewLink:l,downloadLink:getDL(l),week:$('editWeek').value,type:$('editType').value,track:$('editTrack').value,dept:$('editDept').value,level:$('editLevel').value,semester:$('editSem').value,tags:$('editTags').value.trim(),doctor:$('editDoctor').value.trim(),deadline:$('editDeadline').value}},'عُدل'))closeModal('editModal');
 }
 function reportLink(id){act('report',{id},'تم الإبلاغ ⚠')}
 $('importFile').addEventListener('change',e=>{
@@ -1491,7 +1499,7 @@ function bulkClear(){AF.sel={};$('afAll').checked=false;renderAdminFiles();updat
 $('afList').addEventListener('change',e=>{const c=e.target.closest('.afck');if(!c)return;AF.sel[c.dataset.id]=c.checked;updateBar()});
 $('afAll').addEventListener('change',e=>{document.querySelectorAll('#afList .afck').forEach(c=>{c.checked=e.target.checked;AF.sel[c.dataset.id]=e.target.checked});updateBar()});
 async function bulkHide(v){const ids=selIds();if(!ids.length)return;if(await act('bulkedit',{ids,fields:{hidden:v}}))bulkClear()}
-async function bulkDelete(){const ids=selIds();if(!ids.length||!confirm('نقل '+ids.length+' ملف لسلة المحذوفات؟ (تقدر ترجّعهم خلال 30 يوم)'))return;if(await act('bulkdel',{ids}))bulkClear()}
+async function bulkDelete(){const ids=selIds();if(!ids.length||!(await askConfirm('نقل '+ids.length+' ملف لسلة المحذوفات؟ (تقدر ترجّعهم خلال 30 يوم)')))return;if(await act('bulkdel',{ids}))bulkClear()}
 function bulkMove(){
   const o=(a,id)=>`<select id="${id}" class="form-select"><option value="">— بدون تغيير —</option>${opts(a)}</select>`;
   tool(`<h3>📦 نقل/تعديل ${selIds().length} ملف</h3><p style="font-size:12px;margin:0 0 8px">اختار بس اللي عايز تغيّره، والباقي بيفضل زي ما هو.</p><div class="form-group"><label>النظام</label>${o(['عام','خاص'],'bmT')}</div><div class="form-group"><label>القسم</label>${o(['مشترك'].concat(DEPTS),'bmD')}</div><div class="form-group"><label>الفرقة</label>${o(LEVELS,'bmL')}</div><div class="form-group"><label>الفصل</label>${o(['الفصل الأول','الفصل الثاني'],'bmS')}</div><div class="form-group"><label>الأسبوع</label>${o(WEEKS,'bmW')}</div><div class="form-group"><label>النوع</label>${o(TYPES,'bmY')}</div><button class="btn" style="width:100%" onclick="bulkMoveGo()">تطبيق</button>`);
@@ -1555,12 +1563,12 @@ let ADMS=[];
 async function openAdmins(){
   try{
     const j=await api('adminlist');ADMS=j.admins;
-    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (4 حروف على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
+    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (6 حروف على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
   }catch(e){toast(e.message||'خطأ',1)}
 }
 function adminEdit(n){const a=ADMS[n];$('admN').value=a.name;$('admP').value='';$('admP').placeholder='سيب الباسورد فاضي لو مش هتغيّره';$('admR').value=a.role;$('admS').value=a.scope;$('admFormT').textContent='✏️ تعديل: '+a.name}
 async function adminSave(){if(await act('adminsave',{name:$('admN').value,password:$('admP').value,role:$('admR').value,scope:$('admS').value}))openAdmins()}
-async function adminDel(n){const a=ADMS[n];if(confirm('حذف الأدمن «'+a.name+'»؟')&&await act('admindel',{name:a.name}))openAdmins()}
+async function adminDel(n){const a=ADMS[n];if((await askConfirm('حذف الأدمن «'+a.name+'»؟'))&&await act('admindel',{name:a.name}))openAdmins()}
 /* ===== ابديت 8: مساهمات، مزامنة، مخطط مذاكرة ===== */
 function openContribute(){
   const p=userPath;
@@ -1591,7 +1599,7 @@ function openSync(){
   tool(`<h3>☁️ مزامنة بياناتي</h3><p style="font-size:12px;margin:0 0 8px">انقل ملاحظاتك ومهامك وتقدمك ومحفوظاتك بين أجهزتك بكود شخصي من غير تسجيل دخول. <b>مهم:</b> البيانات بتتخزن في شيت إدارة الموقع، فمتحطّش فيها حاجة سرية، واللي يعرف الكود يقدر يشوفها.</p>${code?`<div class="acard"><b>الكود بتاعك:</b><div style="font-size:22px;letter-spacing:3px;direction:ltr;text-align:center;margin:6px 0">${esc(code)}</div><small>${at?'آخر رفع: '+new Date(at).toLocaleString('ar-EG'):'لسه ما اترفعش'}</small><label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="syGpa"> أضمّن بيانات الـ GPA والدرجات</label><button class="btn" style="width:100%;margin-top:8px" onclick="syncUp()">⬆️ ارفع بياناتي الآن</button><button class="btn btn-danger sm" style="margin-top:8px" onclick="syncForget()">إلغاء الكود من الجهاز</button></div>`:'<button class="btn" style="width:100%;margin-bottom:10px" onclick="syncCreate()">🔑 إنشاء كود جديد لجهازي</button>'}<div class="acard"><b>جهاز تاني؟</b> اكتب الكود واسترجع بياناتك:<input id="syIn" class="form-input" style="margin-top:6px;direction:ltr;text-transform:uppercase" maxlength="10" placeholder="XXXXXXXXXX"><button class="btn btn-warning" style="width:100%;margin-top:8px" onclick="syncDown()">⬇️ استرجاع</button></div>`);
 }
 function syncCreate(){sv('fci_sync_code',syncNewCode());openSync()}
-function syncForget(){if(confirm('تلغي الكود من الجهاز ده؟ البيانات المرفوعة هتفضل على السيرفر.')){try{localStorage.removeItem('fci_sync_code')}catch(e){}openSync()}}
+async function syncForget(){if(await askConfirm('تلغي الكود من الجهاز ده؟ البيانات المرفوعة هتفضل على السيرفر.')){try{localStorage.removeItem('fci_sync_code')}catch(e){}openSync()}}
 async function syncUp(){
   const code=ld('fci_sync_code','');if(!code)return;
   const data=JSON.stringify(syncCollect($('syGpa')&&$('syGpa').checked));
@@ -1603,7 +1611,7 @@ async function syncDown(){
   if(!/^[A-HJ-NP-Z2-9]{10}$/.test(code))return toast('الكود لازم 10 حروف وأرقام',1);
   try{
     const j=await api('syncget',{code});let o;try{o=JSON.parse(j.sync)}catch(e){throw new Error('بيانات تالفة')}
-    if(!confirm('هيتم استبدال بيانات الجهاز ده ببيانات الكود. نكمل؟'))return;
+    if(!(await askConfirm('هيتم استبدال بيانات الجهاز ده ببيانات الكود. نكمل؟')))return;
     SYNC_KEYS.concat(SYNC_GPA).forEach(k=>{if(typeof o[k]==='string'&&o[k].length<45000){try{localStorage.setItem(k,o[k])}catch(e){}}});
     try{localStorage.setItem('fci_sync_code',JSON.stringify(code))}catch(e){}
     toast('تم الاسترجاع ✅ بيعيد تحميل الصفحة...');setTimeout(()=>location.reload(),900);
@@ -1634,11 +1642,11 @@ function trDefaults(){return {track:$('trTrack').value,dept:$('trDept').value,le
 async function treeCollect(){
   const root=$('trRoot').value.trim();if(!root){toast('الصق رابط الفولدر الرئيسي',1);return false}
   toast('بيفحص الفولدر... ممكن ياخد دقيقة');
-  TR={files:[],truncated:false};let stack=null,guard=0;
+  TR={files:[],truncated:false};let stack=null,seen=null,guard=0;
   try{
     for(;;){
-      const j=await api('treescan',{root:stack?'':root,stack,defaults:trDefaults()});
-      TR.files=TR.files.concat(j.files);stack=j.stack;
+      const j=await api('treescan',{root:stack?'':root,stack,seen,defaults:trDefaults()});
+      TR.files=TR.files.concat(j.files||[]);stack=j.stack;seen=j.seen;
       if(j.done)break;
       if(++guard>40||TR.files.length>=1500){TR.truncated=true;break}
       toast('فحصت '+TR.files.length+' ملف لحد دلوقتي...');
@@ -1656,20 +1664,24 @@ function showTreePlan(){
 async function treeImport(){
   const items=TR.files.filter(f=>f.ok&&!f.exists);
   if(!items.length)return toast('مفيش ملفات جديدة جاهزة',1);
-  if(!confirm('هيتم استيراد '+items.length+' ملف وفتح مشاركتها لأي حد معاه الرابط. نكمل؟'))return;
-  let done=0,fail=0;const subs=new Set();
-  for(let i=0;i<items.length;i+=20){
-    const part=items.slice(i,i+20);
-    try{const j=await api('treebatch',{items:part.map(f=>({id:f.id,fields:f.fields})),quiet:true});apply(j);done+=part.length;part.forEach(f=>subs.add(f.fields.subject))}
-    catch(e){fail=items.length-done;toast(e.message||'خطأ',1);break}
+  if(!(await askConfirm('هيتم استيراد '+items.length+' ملف وفتح مشاركتها لأي حد معاه الرابط. نكمل؟')))return;
+  let done=0,skip=0,fail=0;const subs=new Set();
+  for(let i=0;i<items.length;i+=12){
+    const part=items.slice(i,i+12);
+    try{
+      const j=await api('treebatch',{items:part.map(f=>({id:f.id,fields:f.fields})),quiet:true});
+      apply(j);
+      done+=(j.imported??part.length);skip+=(j.skipped||0);fail+=(j.failed||0);
+      part.forEach(f=>subs.add(f.fields.subject));
+    }catch(e){fail+=(items.length-i);toast(e.message||'خطأ',1);break}
     toast('اتستورد '+done+' من '+items.length+'...');
   }
   if(done)api('treesummary',{n:done,subjects:Array.from(subs)}).catch(()=>{});
-  closeModal('toolModal');toast('خلّصت: '+done+' ملف'+(fail?' • فشل '+fail:'')+' ✅');
+  closeModal('toolModal');toast('خلّصت: '+done+' ملف'+(skip?' • اتخطّى '+skip:'')+(fail?' • فشل '+fail:'')+' ✅');
 }
 async function treeSyncNow(){if(await treeCollect())treeImport()}
 async function treeSaveCfg(){const root=$('trRoot').value.trim();if(!root)return toast('الصق رابط الفولدر',1);if(await act('treecfg',{root,defaults:trDefaults()}))loadTreeCfg()}
-async function treeClearCfg(){if(confirm('تشيل المصدر التلقائي؟')&&await act('treecfg',{clear:true}))loadTreeCfg()}
+async function treeClearCfg(){if((await askConfirm('تشيل المصدر التلقائي؟'))&&await act('treecfg',{clear:true}))loadTreeCfg()}
 async function loadTreeCfg(){
   try{
     const c=(await api('treecfgget')).cfg,d=c.defaults||{};
@@ -1678,7 +1690,7 @@ async function loadTreeCfg(){
     $('trTrack').value=d.track||'';$('trDept').value=d.dept||'';$('trLevel').value=d.level||'';$('trSem').value=d.semester||'';$('trSubj').value=d.subject||'';$('trRootSub').checked=!!d.rootAsSubject;
   }catch(e){}
 }
-async function healFix(){if(confirm('هيتم فتح المشاركة (أي حد معاه الرابط) لكل ملفات الدرايف اللي لقاها الفحص مقفولة. نكمل؟')&&await act('healfix',{}))openHealth()}
+async function healFix(){if((await askConfirm('هيتم فتح المشاركة (أي حد معاه الرابط) لكل ملفات الدرايف اللي لقاها الفحص مقفولة. نكمل؟'))&&await act('healfix',{}))openHealth()}
 function adminsInto(){
   if(!OWNER)return;const b=$('toolBody');if(!b)return;
   const by={},now=Date.now();
@@ -1727,8 +1739,8 @@ function openMenu(){
 $('toolBody').addEventListener('click',async e=>{
   const ev=e.target.closest('[data-ev]'),rq=e.target.closest('[data-rq]'),cd=e.target.closest('[data-cd]'),rs=e.target.closest('[data-rs]'),dc=e.target.closest('[data-dc]'),rst=e.target.closest('[data-rst]'),ca=e.target.closest('[data-ca]'),cr=e.target.closest('[data-cr]');
   if(ca&&CTR[+ca.dataset.ca])act('contribapprove',{id:CTR[+ca.dataset.ca].id}).then(ok=>ok&&openContribs());
-  if(cr&&confirm('رفض المساهمة؟'))act('contribreject',{id:cr.dataset.cr}).then(ok=>ok&&openContribs());
-  if(dc&&confirm('مسح التعليق؟')){const k=dc.dataset.dc.split('|');act('delc',{id:k[0],i:+k[1]}).then(ok=>ok&&openComments())}
+  if(cr&&(await askConfirm('رفض المساهمة؟')))act('contribreject',{id:cr.dataset.cr}).then(ok=>ok&&openContribs());
+  if(dc&&(await askConfirm('مسح التعليق؟'))){const k=dc.dataset.dc.split('|');act('delc',{id:k[0],i:+k[1]}).then(ok=>ok&&openComments())}
   if(rst){const k=rst.dataset.rst.split('|');api('reqstatus',{id:k[0],status:k[1]}).then(()=>openReqList()).catch(x=>toast(x.message||'خطأ',1))}
   if(rs)act('restore',{id:rs.dataset.rs},'تم الاسترجاع ✅').then(ok=>ok&&openTrash());
   if(ev&&(await askConfirm('حذف الموعد؟')))act('evdel',{id:ev.dataset.ev}).then(ok=>ok&&openEvents());
@@ -1887,7 +1899,7 @@ async function saveDriveImport(){
   if(!base.subject)return toast('اكتب اسم المادة في الكروت اللي فوق',1);
   if(!(await askConfirm('هيتم استيراد ملفات الفولدر لمادة «'+base.subject+'»'+($('driveShare').checked?' وفتح مشاركتها لأي حد معاه الرابط':'')+'. نكمل؟')))return;
   toast('بيستورد... ممكن ياخد نص دقيقة');
-  if(await act('driveimport',{folder,base,auto:$('driveAuto').checked,share:$('driveShare').checked}))$('driveFolder').value='';
+  const res=await act('driveimport',{folder,base,auto:$('driveAuto').checked,share:$('driveShare').checked});if(res&&!res.hasMore)$('driveFolder').value='';
 }
 async function openHealth(){try{const j=await api('healthlist');showHealth(j.health)}catch(e){toast(e.message||'خطأ',1)}}
 function showHealth(a){
