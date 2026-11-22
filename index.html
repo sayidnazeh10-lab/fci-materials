@@ -620,6 +620,25 @@ body.dark-mode .tag{color:#93c5fd;background:rgba(37,99,235,.22)}
       <button class="tile" onclick="openLog()"><span>🧾</span>سجل النشاط</button>
       <button class="tile owner-only" onclick="openAdmins()"><span>👥</span>الأدمنز</button>
     </div>
+    <div class="acard owner-only">
+      <h4>📂 المنظّم الذكي لدرايف</h4>
+      <p style="font-size:12px;margin:0 0 8px">حط رابط <b>فولدر واحد</b> فيه كل المواد، ورتّبه بأسماء واضحة بأي ترتيب، مثلاً: <code dir="ltr">الفرقة الثالثة / الترم الأول / Algorithms / محاضرات</code>. الموقع بيقرا الأسماء ويوزّع كل ملف على النظام والقسم والفرقة والترم والمادة والنوع والأسبوع لوحده، ويفتح المشاركة. الفولدر لازم يكون على <b>حسابك</b>.</p>
+      <input type="url" id="trRoot" class="form-input" placeholder="https://drive.google.com/drive/folders/...">
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="trRootSub"> اعتبر اسم الفولدر ده هو اسم المادة (لو الفولدر لمادة واحدة)</label>
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-weight:bold;font-size:13px">افتراضيات للملفات اللي اسمها مش واضح (اختياري)</summary>
+        <div class="form-grid" style="margin-top:8px">
+          <select id="trTrack" class="form-select"></select><select id="trDept" class="form-select"></select>
+          <select id="trLevel" class="form-select"></select><select id="trSem" class="form-select"></select>
+          <input type="text" id="trSubj" class="form-input" placeholder="اسم المادة الافتراضي">
+        </div>
+      </details>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="treeScan()">🔍 فحص وعرض التوزيع</button>
+        <button class="btn btn-warning" onclick="treeSyncNow()">⚡ فحص واستيراد مباشرة</button>
+        <button class="btn sm" onclick="treeSaveCfg()">💾 حفظ كمصدر تلقائي</button>
+      </div>
+      <p id="trInfo" style="font-size:12px;margin:8px 0 0;color:#888"></p>
+    </div>
     <div class="acard">
       <h4>💾 النسخ الاحتياطي</h4>
       <p style="font-size:12px;margin:0 0 8px">نزّل نسخة من كل الملفات كل فترة، وتقدر ترجّعها وقت الحاجة.</p>
@@ -1608,6 +1627,66 @@ function openPlanner(){
   const status=!rows.length?'':mins>cap?'⚠️ الحمل النهاردة حوالي '+(mins/60).toFixed(1)+' ساعة وده أكتر من '+c.hrs+' ساعات. زوّد وقتك أو ابدأ بالأقرب امتحاناً.':'✅ حملك النهاردة حوالي '+(mins/60).toFixed(1)+' ساعة، جوه وقتك.';
   tool(`<h3>🗓 خطة مذاكرة ذكية</h3><p style="font-size:12px;margin:0 0 8px">بتتحسب من مواعيد الامتحانات اللي الإدارة ضايفاها وملفات موادك اللي لسه ما علّمتش عليها ✔.</p><div class="row"><label style="font-size:12px">دقايق للملف<input id="plMpf" type="number" class="form-input" value="${c.mpf}" onchange="planSet()"></label><label style="font-size:12px">ساعات المذاكرة يومياً<input id="plHrs" type="number" step="0.5" class="form-input" value="${c.hrs}" onchange="planSet()"></label></div>${status?'<p><b>'+status+'</b></p>':''}${rows.length?rows.map(r=>`<div class="acard"><b>${esc(r.e.subject)}</b> — ${esc(r.e.title)} <span class="countdown-badge">${r.left} يوم للمذاكرة</span><br><small>${r.rem.length} ملف متبقي من ${r.files.length}${r.per?' • النهاردة: '+r.per+' ملف':' • خلّصت ✅'}</small>${r.rem.slice(0,r.per).map(i=>`<div class="ev"><span>${esc(i.title)}</span><a class="open-btn btn sm" href="${esc(i.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a></div>`).join('')}</div>`).join(''):'<p>مفيش امتحانات قادمة عليها اسم مادة. اطلب من الإدارة تضيف المواعيد.</p>'}`);
 }
+/* ===== المنظّم الذكي لدرايف (للمالك) ===== */
+let TR={files:[],truncated:false};
+function trDefaults(){return {track:$('trTrack').value,dept:$('trDept').value,level:$('trLevel').value,semester:$('trSem').value,subject:$('trSubj').value.trim(),rootAsSubject:$('trRootSub').checked}}
+(function(){const o=a=>'<option value="">— تلقائي —</option>'+opts(a);$('trTrack').innerHTML=o(['عام','خاص']);$('trDept').innerHTML=o(['مشترك'].concat(DEPTS));$('trLevel').innerHTML=o(LEVELS);$('trSem').innerHTML=o(['الفصل الأول','الفصل الثاني'])})();
+async function treeCollect(){
+  const root=$('trRoot').value.trim();if(!root){toast('الصق رابط الفولدر الرئيسي',1);return false}
+  toast('بيفحص الفولدر... ممكن ياخد دقيقة');
+  TR={files:[],truncated:false};let stack=null,guard=0;
+  try{
+    for(;;){
+      const j=await api('treescan',{root:stack?'':root,stack,defaults:trDefaults()});
+      TR.files=TR.files.concat(j.files);stack=j.stack;
+      if(j.done)break;
+      if(++guard>40||TR.files.length>=1500){TR.truncated=true;break}
+      toast('فحصت '+TR.files.length+' ملف لحد دلوقتي...');
+    }
+    return true;
+  }catch(e){toast(e.message||'خطأ',1);return false}
+}
+async function treeScan(){if(await treeCollect())showTreePlan()}
+function showTreePlan(){
+  const fs=TR.files,ok=fs.filter(f=>f.ok&&!f.exists),ex=fs.filter(f=>f.exists).length,bad=fs.filter(f=>!f.ok&&!f.exists),g={};
+  ok.forEach(f=>{const x=f.fields,k=[x.track,x.dept,x.level,x.semester,x.subject].join('|'),o=g[k]=g[k]||{x,n:0,t:{}};o.n++;o.t[x.type]=(o.t[x.type]||0)+1});
+  const rows=Object.keys(g).sort().map(k=>{const o=g[k],x=o.x;return `<div class="ev"><div><b>${esc(x.subject)}</b><br><small>${esc(trackLabel(x.track))} • ${esc(x.dept)} • ${esc(x.level)} • ${esc(x.semester)}<br>${Object.keys(o.t).map(t=>esc(t)+' '+o.t[t]).join(' • ')}</small></div><b>${o.n}</b></div>`}).join('');
+  tool(`<h3>📂 نتيجة الفحص</h3><p>لقيت <b>${fs.length}</b> ملف: <b style="color:var(--success-color)">${ok.length} جديد جاهز</b> • ${ex} موجود قبل كده • <b style="color:var(--danger-color)">${bad.length} مش واضح</b>${TR.truncated?'<br><small>⚠️ الفولدر كبير والفحص وقف عند حد معيّن. استورد اللي ظهر وكرر الفحص بعدها.</small>':''}</p>${ok.length?`<button class="btn" style="width:100%;margin-bottom:10px" onclick="treeImport()">📥 استيراد ${ok.length} ملف</button>`:''}${rows}${bad.length?'<h4>ملفات مش واضحة (مش هتتستورد)</h4><div style="font-size:12px">'+bad.slice(0,15).map(f=>`• ${esc(f.name)}<br><small style="color:#888">${esc(f.trail||'—')} — ${esc(f.reason)}</small>`).join('<br>')+(bad.length>15?'<br>…':'')+'</div><p style="font-size:12px">سمّي الفولدرات بأسماء واضحة (الفرقة والترم والمادة) أو حدد الافتراضيات وافحص تاني.</p>':''}`);
+}
+async function treeImport(){
+  const items=TR.files.filter(f=>f.ok&&!f.exists);
+  if(!items.length)return toast('مفيش ملفات جديدة جاهزة',1);
+  if(!confirm('هيتم استيراد '+items.length+' ملف وفتح مشاركتها لأي حد معاه الرابط. نكمل؟'))return;
+  let done=0,fail=0;const subs=new Set();
+  for(let i=0;i<items.length;i+=20){
+    const part=items.slice(i,i+20);
+    try{const j=await api('treebatch',{items:part.map(f=>({id:f.id,fields:f.fields})),quiet:true});apply(j);done+=part.length;part.forEach(f=>subs.add(f.fields.subject))}
+    catch(e){fail=items.length-done;toast(e.message||'خطأ',1);break}
+    toast('اتستورد '+done+' من '+items.length+'...');
+  }
+  if(done)api('treesummary',{n:done,subjects:Array.from(subs)}).catch(()=>{});
+  closeModal('toolModal');toast('خلّصت: '+done+' ملف'+(fail?' • فشل '+fail:'')+' ✅');
+}
+async function treeSyncNow(){if(await treeCollect())treeImport()}
+async function treeSaveCfg(){const root=$('trRoot').value.trim();if(!root)return toast('الصق رابط الفولدر',1);if(await act('treecfg',{root,defaults:trDefaults()}))loadTreeCfg()}
+async function treeClearCfg(){if(confirm('تشيل المصدر التلقائي؟')&&await act('treecfg',{clear:true}))loadTreeCfg()}
+async function loadTreeCfg(){
+  try{
+    const c=(await api('treecfgget')).cfg,d=c.defaults||{};
+    $('trInfo').innerHTML=c.root?`✅ مصدر تلقائي متفعّل (بيتزامن كل يوم لو فعّلت الأتمتة). آخر مزامنة: ${esc(c.last||'لسه')} <button class="btn btn-danger sm" onclick="treeClearCfg()">إلغاء</button>`:'مفيش مصدر تلقائي متحفظ.';
+    if(c.root&&!$('trRoot').value)$('trRoot').value='https://drive.google.com/drive/folders/'+c.root;
+    $('trTrack').value=d.track||'';$('trDept').value=d.dept||'';$('trLevel').value=d.level||'';$('trSem').value=d.semester||'';$('trSubj').value=d.subject||'';$('trRootSub').checked=!!d.rootAsSubject;
+  }catch(e){}
+}
+async function healFix(){if(confirm('هيتم فتح المشاركة (أي حد معاه الرابط) لكل ملفات الدرايف اللي لقاها الفحص مقفولة. نكمل؟')&&await act('healfix',{}))openHealth()}
+function adminsInto(){
+  if(!OWNER)return;const b=$('toolBody');if(!b)return;
+  const by={},now=Date.now();
+  getDB().forEach(i=>{const k=i.by||'—',o=by[k]=by[k]||{n:0,m:0};o.n++;if(now-i.timestamp<30*864e5)o.m++});
+  const d=document.createElement('div');
+  d.innerHTML='<h4>👥 إسهامات الأدمنز</h4>'+Object.keys(by).sort((a,b)=>by[b].n-by[a].n).map(k=>`<div class="ev"><span>${esc(k)}</span><span>${by[k].n} ملف • ${by[k].m} آخر 30 يوم</span></div>`).join('');
+  b.insertBefore(d,b.lastElementChild);
+}
 /* ===== الإشعارات ===== */
 function soonList(){
   const p=userPath,out=[],done=ld('fci_done',[]);
@@ -1729,7 +1808,7 @@ function openDash(){
   db.forEach(i=>{const o=by[i.subject]=by[i.subject]||{n:0,u:0};o.n++;o.u+=(i.views||0)+(i.downloads||0)});
   const top=db.slice().sort((a,b)=>((b.views||0)+(b.downloads||0))-((a.views||0)+(a.downloads||0))).slice(0,6);
   tool(`<h3>📈 إحصائيات الموقع</h3><div class="stats-container"><div class="stat-box"><div class="stat-num">${db.length}</div>ملف</div><div class="stat-box"><div class="stat-num">${sum('views')}</div>مشاهدة</div><div class="stat-box"><div class="stat-num">${sum('downloads')}</div>تحميل</div></div><h4>أكتر المواد استخداماً</h4>${Object.keys(by).sort((a,b)=>by[b].u-by[a].u).slice(0,6).map(k=>`<div class="ev"><span>${esc(k)}</span><span>${by[k].u} استخدام • ${by[k].n} ملف</span></div>`).join('')}<h4>أكتر الملفات</h4>${top.map(itemRow).join('')}`);
-  visitsInto();
+  visitsInto();adminsInto();
 }
 async function openLog(){
   try{const j=await api('loglist');tool(`<h3>🧾 سجل النشاط</h3>${j.log.length?j.log.map(l=>`<div class="ev"><div><b>${esc(l.a)}</b> <small>${esc(l.d)}</small><br><small>${esc(l.n)} • ${esc(l.t)}</small></div></div>`).join(''):'<p>لا يوجد نشاط.</p>'}`)}catch(e){toast(e.message||'خطأ',1)}
@@ -1775,6 +1854,7 @@ function adminTab(t){
   if(t==='home'){updateStats();renderReports();loadAttention()}
   if(t==='files')renderAdminFiles();
   if(t==='students')loadStudentsTab();
+  if(t==='settings'&&OWNER)loadTreeCfg();
 }
 function renderAdminFiles(){
   const db=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp),q=norm(AF.q);
@@ -1811,7 +1891,7 @@ async function saveDriveImport(){
 }
 async function openHealth(){try{const j=await api('healthlist');showHealth(j.health)}catch(e){toast(e.message||'خطأ',1)}}
 function showHealth(a){
-  tool(`<h3>🩺 صحة الروابط</h3><p style="font-size:12px;margin:0 0 8px">الفحص الأسبوعي تلقائي لو فعّلت الأتمتة، وتقدر تفحص دفعة دلوقتي.</p><button class="btn btn-warning" style="width:100%;margin-bottom:8px" onclick="healthRun()">🔄 افحص 25 ملف الآن</button>${a.length?a.map(h=>`<div class="ev"><div><b>${esc(h.title)}</b><br><small>${esc(h.subject)} • ${esc(h.problem)} • ${esc(h.at)}</small></div><button class="btn sm" onclick="closeModal('toolModal');openEdit('${esc(h.id)}')">✏️</button></div>`).join(''):'<p>مفيش روابط فيها مشاكل مسجلة ✅</p>'}`);
+  tool(`<h3>🩺 صحة الروابط</h3><p style="font-size:12px;margin:0 0 8px">الفحص الأسبوعي تلقائي لو فعّلت الأتمتة، وتقدر تفحص دفعة دلوقتي.</p><button class="btn btn-warning" style="width:100%;margin-bottom:8px" onclick="healthRun()">🔄 افحص 25 ملف الآن</button>${OWNER&&a.some(h=>/مش مشارك/.test(h.problem))?'<button class="btn btn-danger" style="width:100%;margin-bottom:8px" onclick="healFix()">🔓 افتح مشاركة الملفات المقفولة</button>':''}${a.length?a.map(h=>`<div class="ev"><div><b>${esc(h.title)}</b><br><small>${esc(h.subject)} • ${esc(h.problem)} • ${esc(h.at)}</small></div><button class="btn sm" onclick="closeModal('toolModal');openEdit('${esc(h.id)}')">✏️</button></div>`).join(''):'<p>مفيش روابط فيها مشاكل مسجلة ✅</p>'}`);
 }
 async function healthRun(){toast('بيفحص...');try{const j=await api('healthrun');toast(j.msg||'تم');showHealth(j.health)}catch(e){toast(e.message||'خطأ',1)}}
 async function openTrash(){
