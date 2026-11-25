@@ -869,7 +869,7 @@ function toggleIn(arr,v,key){const i=arr.indexOf(v);i>-1?arr.splice(i,1):arr.pus
 
 /* ===== الاتصال بـ Google Sheets API ===== */
 const API='https://script.google.com/macros/s/AKfycbyS2hyRuwqBDB5IXxlyCqM2Kzqb-j6jBDpmxlS7T4_ho1Gn1o7xSEttfcqIb1ZuthxrdQ/exec';
-let DB=fixItems(ld('fci_db',[])),REPS=[],ANN=ld('fci_ann',''),TOK='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]),QUIZZES=ld('fci_quizzes',[]),QA_LIST=ld('fci_qa',[]),TIPS=ld('fci_tips',[]),ROADMAP=ld('fci_roadmap',[]),AI_ENABLED=false;
+let DB=fixItems(ld('fci_db',[])),REPS=[],ANN=ld('fci_ann',''),TOK='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]),QUIZZES=ld('fci_quizzes',[]),QA_LIST=ld('fci_qa',[]),TIPS=ld('fci_tips',[]),ROADMAP=ld('fci_roadmap',[]),AI_ENABLED=false,AI_MODEL='';
 const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
@@ -908,6 +908,7 @@ function apply(j){
   if(Array.isArray(j.tips)){TIPS=j.tips;sv('fci_tips',TIPS)}
   if(Array.isArray(j.roadmap)){ROADMAP=j.roadmap;sv('fci_roadmap',ROADMAP)}
   if(typeof j.aiEnabled==='boolean')AI_ENABLED=j.aiEnabled;
+  if(typeof j.aiModel==='string')AI_MODEL=j.aiModel;
   if(j.counts)syncLocalAdminCounts(j.counts);
   renderNotif();loadAnnouncement();updateAddDatalists();
   if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
@@ -2030,7 +2031,7 @@ function switchAiTab(tab){
 }
 
 function renderAiHub(){
-  if($('aiStatusPill'))$('aiStatusPill').textContent=AI_ENABLED?'🟢 Gemini Pro متصل':'⚪ بانتظار API Key من الإدارة';
+  if($('aiStatusPill'))$('aiStatusPill').textContent=AI_ENABLED?('🟢 متصل'+(AI_MODEL?' ('+AI_MODEL+')':'')):'⚪ بانتظار API Key من الإدارة';
   if($('addQuizBankBtn'))$('addQuizBankBtn').style.display=isAdmin?'inline-flex':'none';
   if($('addRoadBtn'))$('addRoadBtn').style.display=OWNER?'inline-flex':'none';
   if($('roadDeptSel')&&userPath&&userPath.dept&&!$('roadDeptSel').dataset.synced){
@@ -2507,39 +2508,101 @@ async function deleteQa(qid,aid){
   if(await askConfirm(aid?'حذف هذه الإجابة؟':'حذف السؤال بكل إجاباته؟'))await act('qadel',{id:qid,aid});
 }
 
-/* ===== إدارة إعدادات Gemini Pro + اقتراح الوسوم للأدمن ===== */
+/* ===== إدارة إعدادات Gemini API + جلب الموديلات المتاحة تلقائياً ===== */
+const DEFAULT_AI_MODELS=[
+  {id:'gemini-3.8-flash',label:'Gemini 3.8 Flash (مجاني وسريع — موصى به)'},
+  {id:'gemini-4-hydrogen',label:'Gemini 4 Hydrogen (مجاني — 20 طلب/يوم)'},
+  {id:'gemini-3.1-pro-preview',label:'Gemini 3.1 Pro Preview (يتطلب Billing)'},
+  {id:'gemini-flash-latest',label:'Gemini Flash Latest'},
+  {id:'gemini-pro-latest',label:'Gemini Pro Latest'}
+];
+let _fetchedAiModels=[];
+
 function syncAiCustomModel(){
   const sel=$('aiModelSel'),cus=$('aiCustomModel');
   if(!sel||!cus)return;
   cus.style.display=sel.value==='custom'?'block':'none';
 }
 
+function selectAiModelInDropdown(modelId){
+  const sel=$('aiModelSel'),cus=$('aiCustomModel');
+  if(!sel||!cus)return;
+  const hasOpt=Array.from(sel.options).some(o=>o.value===modelId);
+  if(hasOpt){sel.value=modelId;cus.style.display='none'}
+  else{sel.value='custom';cus.value=modelId;cus.style.display='block'}
+}
+
 async function loadAiCfg(){
   try{
     const a=(await api('aiget')).ai||{};
     if($('aiKeyInput'))$('aiKeyInput').placeholder=a.hasKey?'✅ المفتاح محفوظ بأمان على السيرفر (سيبه فاضي لو مش هتغيره)':'Gemini API Key من Google AI Studio';
-    if($('aiDailyLimit'))$('aiDailyLimit').value=a.dailyLimit||250;
-    const m=a.model||'gemini-2.5-pro';
-    if($('aiModelSel')){
-      const hasOpt=Array.from($('aiModelSel').options).some(o=>o.value===m);
-      if(hasOpt){$('aiModelSel').value=m;$('aiCustomModel').style.display='none'}
-      else{$('aiModelSel').value='custom';$('aiCustomModel').value=m;$('aiCustomModel').style.display='block'}
-    }
-    if($('aiCfgInfo'))$('aiCfgInfo').innerHTML=(a.hasKey?'🟢 <b>مفعّل</b>':'🔴 <b>غير مفعّل</b>')+' • الموديل الحالي: <code dir="ltr">'+esc(m)+'</code> • استهلاك اليوم: <b>'+(a.usedToday||0)+' / '+(a.dailyLimit||250)+'</b>';
+    if($('aiDailyLimit'))$('aiDailyLimit').value=a.dailyLimit||20;
+    const m=a.model||'gemini-3.8-flash';
+    selectAiModelInDropdown(m);
+    if($('aiCfgInfo'))$('aiCfgInfo').innerHTML=(a.hasKey?'🟢 <b>مفعّل</b>':'🔴 <b>غير مفعّل</b>')+' • الموديل الحالي: <code dir="ltr">'+esc(m)+'</code> • استهلاك اليوم: <b>'+(a.usedToday||0)+' / '+(a.dailyLimit||20)+'</b>';
+    if(_fetchedAiModels.length)renderFetchedAiModels(m);
   }catch(e){}
+}
+
+function renderFetchedAiModels(activeId){
+  const box=$('aiModelsBox');if(!box)return;
+  if(!_fetchedAiModels.length){box.innerHTML='';return}
+  box.innerHTML=`<div class="ai-models-panel">
+    <div class="ai-models-head">
+      <span>✨ الموديلات المتاحة على مفتاحك (${_fetchedAiModels.length} موديل — اضغط لاختيار أي موديل)</span>
+      <button type="button" class="pill-btn" onclick="$('aiModelsBox').innerHTML=''">إخفاء ✕</button>
+    </div>
+    <div class="ai-models-grid">${_fetchedAiModels.map((m,idx)=>`
+      <button type="button" class="ai-model-chip${m.id===activeId?' active':''}" onclick="pickFetchedAiModel(${idx})">
+        <b>${esc(m.name||m.id)}</b>
+        <code>${esc(m.id)}</code>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+async function fetchAvailableAiModels(){
+  const btn=$('aiFetchModelsBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ جاري جلب الموديلات...'}
+  try{
+    const j=await api('aimodels',{key:$('aiKeyInput')?$('aiKeyInput').value.trim():''});
+    _fetchedAiModels=Array.isArray(j.models)?j.models:[];
+    const sel=$('aiModelSel');
+    if(sel&&_fetchedAiModels.length){
+      const curSel=sel.value==='custom'?$('aiCustomModel').value.trim():sel.value;
+      const liveOpts=_fetchedAiModels.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} (${esc(m.id)})</option>`).join('');
+      const fallbackOpts=DEFAULT_AI_MODELS.filter(d=>!_fetchedAiModels.some(m=>m.id===d.id)).map(d=>`<option value="${esc(d.id)}">${esc(d.label)}</option>`).join('');
+      sel.innerHTML=`<optgroup label="✨ المتاحة على مفتاحك الآن (من جوجل)">${liveOpts}</optgroup>`+(fallbackOpts?`<optgroup label="خيارات شائعة">${fallbackOpts}</optgroup>`:'')+`<option value="custom">✏️ اسم موديل مخصص...</option>`;
+      selectAiModelInDropdown(curSel||j.current||_fetchedAiModels[0].id);
+    }
+    const nowActive=sel?(sel.value==='custom'?$('aiCustomModel').value.trim():sel.value):(j.current||'');
+    renderFetchedAiModels(nowActive);
+    toast(j.msg||('تم جلب '+_fetchedAiModels.length+' موديل متاح ✅'));
+  }catch(e){
+    toast(e.message||'تعذر جلب الموديلات من جوجل',1);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 جلب الموديلات المتاحة'}
+  }
+}
+
+function pickFetchedAiModel(idx){
+  const m=_fetchedAiModels[idx];if(!m)return;
+  selectAiModelInDropdown(m.id);
+  renderFetchedAiModels(m.id);
+  toast('تم اختيار '+m.id+' — اضغط «💾 حفظ الإعدادات» لتفعيله');
 }
 
 async function aiSave(){
   const sel=$('aiModelSel').value;
   const model=sel==='custom'?$('aiCustomModel').value.trim():sel;
   if(!model)return toast('اختار أو اكتب اسم الموديل',1);
-  const res=await act('aiset',{key:$('aiKeyInput').value.trim(),model,dailyLimit:+$('aiDailyLimit').value||250});
+  const res=await act('aiset',{key:$('aiKeyInput').value.trim(),model,dailyLimit:+$('aiDailyLimit').value||20});
   if(res){$('aiKeyInput').value='';loadAiCfg()}
 }
 
 async function aiClearKey(){
   if(await askConfirm('حذف مفتاح Gemini API وإيقاف ميزات الذكاء الاصطناعي؟')){
-    if(await act('aiset',{clearKey:true}))loadAiCfg();
+    if(await act('aiset',{clearKey:true})){_fetchedAiModels=[];if($('aiModelsBox'))$('aiModelsBox').innerHTML='';loadAiCfg()}
   }
 }
 
@@ -2551,7 +2614,7 @@ async function aiTest(){
     toast(j.msg||'متصل بنجاح ✅');
     loadAiCfg();
   }catch(e){toast(e.message||'فشل الاتصال',1)}
-  finally{if(btn){btn.disabled=false;btn.textContent='⚡ تجربة الاتصال بـ Pro'}}
+  finally{if(btn){btn.disabled=false;btn.textContent='⚡ تجربة الاتصال'}}
 }
 
 async function suggestTagsWithAi(){

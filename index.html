@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
   <div id="bg" aria-hidden="true"><div class="bg-dots"></div></div>
@@ -791,24 +791,29 @@
           <button type="button" class="btn btn-danger" onclick="clearAllData()">تصفير السيستم</button>
         </div>
         <div class="acard owner-only">
-          <h4>🤖 ربط الذكاء الاصطناعي (Gemini Pro API)</h4>
-          <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">هات <b>API Key</b> من <b>Google AI Studio</b> (aistudio.google.com) وحطه هنا. المفتاح بيتحفظ مشفّر على السيرفر بس ومش بيظهر للطلاب. <b>ملحوظة:</b> اشتراك Google AI Pro الشخصي منفصل عن فواتير Gemini API.</p>
+          <h4>🤖 ربط الذكاء الاصطناعي (Gemini API)</h4>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">هات <b>API Key</b> من <b>Google AI Studio</b> (aistudio.google.com) وحطه هنا. المفتاح بيتحفظ على السيرفر بس ومش بيظهر للطلاب. اضغط <b>«🔄 جلب الموديلات المتاحة»</b> عشان يجيبلك الموديلات الشغّالة على مفتاحك مباشرة من جوجل.</p>
           <input id="aiKeyInput" type="password" class="form-input" placeholder="Gemini API Key (سيبه فاضي لو مش هتغيره)" autocomplete="off">
           <div class="form-grid" style="margin-top:8px">
             <select id="aiModelSel" class="form-select" onchange="syncAiCustomModel()">
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro (افتراضي — أقوى وأدق)</option>
-              <option value="gemini-pro-latest">Gemini Pro Latest (أحدث نسخة Pro)</option>
-              <option value="custom">✏️ اسم موديل Pro مخصص...</option>
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash (مجاني وسريع — موصى به)</option>
+              <option value="gemini-4-hydrogen">Gemini 4 Hydrogen (مجاني — 20 طلب/يوم)</option>
+              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (يتطلب Billing)</option>
+              <option value="gemini-flash-latest">Gemini Flash Latest</option>
+              <option value="gemini-pro-latest">Gemini Pro Latest</option>
+              <option value="custom">✏️ اسم موديل مخصص...</option>
             </select>
-            <input id="aiCustomModel" type="text" class="form-input" placeholder="اكتب اسم الموديل (مثال: gemini-2.5-pro)" style="display:none" dir="ltr">
-            <input id="aiDailyLimit" type="number" min="10" max="5000" value="250" class="form-input" placeholder="الحد اليومي للطلبات (مثال: 250)">
+            <input id="aiCustomModel" type="text" class="form-input" placeholder="اكتب اسم الموديل (مثال: gemini-3.8-flash)" style="display:none" dir="ltr">
+            <input id="aiDailyLimit" type="number" min="1" max="5000" value="20" class="form-input" placeholder="الحد اليومي للطلبات (مثال: 20 للباقة المجانية)">
           </div>
           <p id="aiCfgInfo" style="font-size:12px;margin:8px 0 0;color:var(--text-muted)"></p>
           <div class="row" style="margin-top:8px">
             <button type="button" class="btn" onclick="aiSave()">💾 حفظ الإعدادات</button>
-            <button type="button" id="aiTestBtn" class="btn btn-warning" onclick="aiTest()">⚡ تجربة الاتصال بـ Pro</button>
+            <button type="button" id="aiFetchModelsBtn" class="btn btn-success" onclick="fetchAvailableAiModels()">🔄 جلب الموديلات المتاحة</button>
+            <button type="button" id="aiTestBtn" class="btn btn-warning" onclick="aiTest()">⚡ تجربة الاتصال</button>
             <button type="button" class="btn btn-danger sm" onclick="aiClearKey()">إزالة المفتاح</button>
           </div>
+          <div id="aiModelsBox"></div>
         </div>
         <div class="acard owner-only">
           <h4>✈️ ربط تليجرام</h4>
@@ -849,6 +854,6 @@
 
   <button type="button" id="scrollTopBtn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى" aria-label="الأعلى">↑</button>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
