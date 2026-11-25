@@ -1,10 +1,10 @@
-// FCI-Materials Service Worker (v12 Ultimate) — Network-First + Safe Navigation Fallback
-const CACHE_NAME = 'fci-materials-v12';
+// FCI-Materials Service Worker (v13 AI Campus Edition) — Network-First + Safe Navigation Fallback
+const CACHE_NAME = 'fci-materials-v13';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=12',
-  './app.js?v=12',
+  './style.css?v=13',
+  './app.js?v=13',
   './manifest.webmanifest',
   './icon.svg',
   './icon-192.png',

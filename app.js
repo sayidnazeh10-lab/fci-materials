@@ -171,7 +171,7 @@ $('editDept').addEventListener('change',()=>{const d=$('editDept').value;if(DEPT
 restoreLastAddPath();
 
 /* ===== التنقل بين الأقسام الرئيسية الخمسة ===== */
-const ALL_MAIN_SECTIONS=['studentFlow','scheduleView','gpaView','studyView','adminLogin','adminDashboard'];
+const ALL_MAIN_SECTIONS=['studentFlow','scheduleView','gpaView','studyView','aiView','adminLogin','adminDashboard'];
 function switchMainView(viewId){
   ALL_MAIN_SECTIONS.forEach(id=>{if($(id))$(id).hidden=(id!==viewId)});
   document.querySelectorAll('[data-main-tab]').forEach(btn=>{
@@ -181,6 +181,7 @@ function switchMainView(viewId){
   if(viewId==='scheduleView')renderScheduleHub();
   if(viewId==='gpaView')renderGpaHub();
   if(viewId==='studyView')renderStudyHub();
+  if(viewId==='aiView')renderAiHub();
   if(viewId==='adminDashboard')adminTab('home');
 }
 function showSection(id){switchMainView(id)}
@@ -807,14 +808,28 @@ function render(){
       const chips=availTypes.map(t=>`<span class="sub-chip">${TYPE_ICONS[t]||'📁'} ${esc(t)} (${g[sub][t].length})</span>`).join('');
       return `<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span>▼</span></button><div class="sub-mini-pbar"><i style="width:${pct}%"></i></div>${chips?`<div class="sub-card-chips">${chips}</div>`:''}</div>`;
     }
+    const subTip=findSubjectTip(sub),subQuizzes=getSubjectQuizzes(sub),subQa=getSubjectQa(sub);
     let h=`<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span><span class="sub-close-pill" data-act="closeSub" role="button" aria-label="إغلاق المادة">✕ إغلاق</span></span></button><div class="subject-content"><div class="pbar"><i style="width:${pct}%"></i></div>`;
-    const focusedType=(activeType&&TYPES.includes(activeType))?activeType:((TF&&TYPES.includes(TF))?TF:(availTypes.length===1?availTypes[0]:null));
+    h+=`<div class="sub-tools-bar"><button type="button" class="btn sm" data-act="aiSub" data-s="${esc(sub)}">🤖 اسأل Gemini Pro عن المادة</button><button type="button" class="btn btn-warning sm" data-act="aiQuizSub" data-s="${esc(sub)}">⚡ ولّد كويز MCQ</button>${isAdmin?`<button type="button" class="btn btn-ghost sm" data-act="tipEdit" data-s="${esc(sub)}">💡 ${subTip?'تعديل دليل المذاكرة':'أضف نصيحة الدفعات الأكبر'}</button>`:''}</div>`;
+    if(subTip){
+      h+=`<details class="senior-tip-box"><summary style="cursor:pointer;font-weight:800">💡 إزاي تذاكر «${esc(sub)}»؟ — نصائح الدفعات الأكبر</summary><div style="margin-top:8px;white-space:pre-line;line-height:1.75">${esc(subTip.guide)}</div>${subTip.resources?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-strong)"><b>📺 أفضل القنوات والمراجع:</b><div style="white-space:pre-line;margin-top:4px">${esc(subTip.resources)}</div></div>`:''}</details>`;
+    }
+    const isSpecialTab=(activeType==='__qa__'||activeType==='__quiz__');
+    const focusedType=isSpecialTab?activeType:((activeType&&TYPES.includes(activeType))?activeType:((TF&&TYPES.includes(TF))?TF:(availTypes.length===1?availTypes[0]:null)));
     h+=`<div class="cat-tabs" role="tablist">`+TYPES.map(t=>{
       const cnt=(g[sub][t]||[]).length,on=focusedType===t;
       return `<button type="button" role="tab" aria-selected="${on}" class="cat-tab${on?' active':''}${!cnt?' empty':''}" data-act="togType" data-s="${esc(t)}"><span>${TYPE_ICONS[t]||'📁'}</span><span>${esc(t)}</span><span class="cat-count">${cnt}</span></button>`;
-    }).join('')+`</div>`;
+    }).join('')+`<button type="button" role="tab" aria-selected="${focusedType==='__quiz__'}" class="cat-tab${focusedType==='__quiz__'?' active':''}${!subQuizzes.length?' empty':''}" data-act="togType" data-s="__quiz__"><span>🧪</span><span>اختبارات MCQ</span><span class="cat-count">${subQuizzes.length}</span></button><button type="button" role="tab" aria-selected="${focusedType==='__qa__'}" class="cat-tab${focusedType==='__qa__'?' active':''}" data-act="togType" data-s="__qa__"><span>💬</span><span>أسئلة Q&amp;A</span><span class="cat-count">${subQa.length}</span></button></div>`;
+    if(focusedType==='__qa__'){
+      return h+renderSubjectQaPanel(sub)+'</div></div>';
+    }
+    if(focusedType==='__quiz__'){
+      const scores=ld('fci_quiz_scores',{});
+      const qHtml=subQuizzes.length?subQuizzes.map(qz=>`<div class="ev"><div><b>🧪 ${esc(qz.title)}</b> ${scores[qz.id]!=null?`<span class="badge-soft badge-ok">أعلى درجة: ${scores[qz.id]}%</span>`:''}<br><small>${(qz.questions||[]).length} سؤال • ⏱ ${qz.minutes||10} دقيقة</small></div><button type="button" class="btn sm" onclick="startSavedQuiz('${safeId(qz.id)}')">▶ ابدأ الاختبار</button></div>`).join(''):`<div class="cat-empty-hint">مفيش اختبارات محفوظة في المادة دي لسه — تقدر تولّد كويز فوري بالذكاء الاصطناعي من الزرار اللي فوق ⚡</div>`;
+      return h+qHtml+'</div></div>';
+    }
     if(!focusedType){
-      h+=`<div class="cat-empty-hint">اضغط على القسم (محاضرات، سكاشن، ملخصات، امتحانات سابقة، أو تكليفات) لعرض ملفاته بس</div>`;
+      h+=`<div class="cat-empty-hint">اضغط على القسم (محاضرات، سكاشن، ملخصات، امتحانات سابقة، تكليفات، اختبارات MCQ، أو أسئلة Q&amp;A) لعرضه</div>`;
       return h+'</div></div>';
     }
     const list=(g[sub][focusedType]||[]).slice().sort((a,b)=>(WEEKS.indexOf(a.week)-WEEKS.indexOf(b.week))||a.title.localeCompare(b.title,'ar',{numeric:true}));
@@ -854,7 +869,7 @@ function toggleIn(arr,v,key){const i=arr.indexOf(v);i>-1?arr.splice(i,1):arr.pus
 
 /* ===== الاتصال بـ Google Sheets API ===== */
 const API='https://script.google.com/macros/s/AKfycbyS2hyRuwqBDB5IXxlyCqM2Kzqb-j6jBDpmxlS7T4_ho1Gn1o7xSEttfcqIb1ZuthxrdQ/exec';
-let DB=fixItems(ld('fci_db',[])),REPS=[],ANN=ld('fci_ann',''),TOK='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]);
+let DB=fixItems(ld('fci_db',[])),REPS=[],ANN=ld('fci_ann',''),TOK='',ME='',OWNER=false,EVENTS=ld('fci_ev',[]),SCHED=ld('fci_sched',[]),QUIZZES=ld('fci_quizzes',[]),QA_LIST=ld('fci_qa',[]),TIPS=ld('fci_tips',[]),ROADMAP=ld('fci_roadmap',[]),AI_ENABLED=false;
 const hasApi=()=>/^https?:/.test(API);
 async function api(a,d={}){
   if(!hasApi())throw new Error('حط رابط الـ API في أول السكريبت');
@@ -888,11 +903,17 @@ function syncLocalAdminCounts(counts){
 }
 function apply(j){
   if(!j||!j.items)return;DB=fixItems(j.items);REPS=j.reports||[];ANN=j.ann||'';EVENTS=j.events||EVENTS;sv('fci_ev',EVENTS);SCHED=j.schedule||SCHED;sv('fci_sched',SCHED);sv('fci_db',DB);sv('fci_ann',ANN);
+  if(Array.isArray(j.quizzes)){QUIZZES=j.quizzes;sv('fci_quizzes',QUIZZES)}
+  if(Array.isArray(j.qa)){QA_LIST=j.qa;sv('fci_qa',QA_LIST)}
+  if(Array.isArray(j.tips)){TIPS=j.tips;sv('fci_tips',TIPS)}
+  if(Array.isArray(j.roadmap)){ROADMAP=j.roadmap;sv('fci_roadmap',ROADMAP)}
+  if(typeof j.aiEnabled==='boolean')AI_ENABLED=j.aiEnabled;
   if(j.counts)syncLocalAdminCounts(j.counts);
   renderNotif();loadAnnouncement();updateAddDatalists();
   if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();
   if(!$('scheduleView').hidden)renderScheduleHub();
   if(!$('studyView').hidden)renderStudyHub();
+  if(!$('aiView').hidden)renderAiHub();
   if(!$('adminDashboard').hidden){updateStats();renderReports();if(!$('ap-files').hidden)renderAdminFiles()}
 }
 let lastRefreshAt=0,isLoadingDB=false;
@@ -1107,6 +1128,10 @@ $('cards').addEventListener('click',e=>{
   const a=el.dataset.act,id=el.dataset.id,s=el.dataset.s;
   if(a==='view'||a==='dl'){trackRecent(id);api('bump',{id,f:a==='dl'?'downloads':'views'}).catch(()=>{});return}
   if(a==='doneAllCat'){e.stopPropagation();return toggleAllCategoryDone(s,el.dataset.t)}
+  if(a==='aiSub'){e.stopPropagation();return openAiForSubject(s,'tutor')}
+  if(a==='aiQuizSub'){e.stopPropagation();return openAiForSubject(s,'quiz')}
+  if(a==='tipEdit'){e.stopPropagation();return openTipEditor(s)}
+  if(a==='qaAsk'){e.stopPropagation();return submitQaQuestion(s)}
   if(a==='closeSub'){e.stopPropagation();activeSub=null;activeType=null;return render()}
   if(a==='closeType'){e.stopPropagation();activeType=null;if(TF){TF='';$('typeFilter').value=''}return render()}
   if(a==='togType'){e.stopPropagation();if(TF&&TF!==s){TF='';$('typeFilter').value=''}activeType=(activeType===s)?null:s;return render()}
@@ -1572,6 +1597,10 @@ function openMenu(){
     ['🗓','الجدول الدراسي ومتتبع الغياب','closeModal(\'toolModal\');switchMainView(\'scheduleView\')'],
     ['🧮','حاسبة المعدل التراكمي والدرجات','closeModal(\'toolModal\');switchMainView(\'gpaView\')'],
     ['⏱️','إدارة التسليمات ومؤقت المذاكرة','closeModal(\'toolModal\');switchMainView(\'studyView\')'],
+    ['🤖','المساعد الذكي (Gemini Pro)','closeModal(\'toolModal\');switchMainView(\'aiView\');switchAiTab(\'tutor\')'],
+    ['🧪','بنك الاختبارات ومولّد MCQ','closeModal(\'toolModal\');switchMainView(\'aiView\');switchAiTab(\'quizzes\')'],
+    ['🏆','لوحة شرف المساهمين','closeModal(\'toolModal\');switchMainView(\'aiView\');switchAiTab(\'leaderboard\')'],
+    ['🗺️','خريطة المقررات والمتطلبات','closeModal(\'toolModal\');switchMainView(\'aiView\');switchAiTab(\'roadmap\')'],
     ['🔍','بحث في كل الملفات','openGlobalSearch()'],['🗓','خطة مذاكرة ذكية','openPlanner()'],['➕','ساهم بملف','openContribute()'],['☁️','مزامنة بياناتي','openSync()'],['🔖','المحفوظات','openSaved()'],['📆','تصدير المواعيد للتقويم','exportIcs()'],['💬','طلب مادة / اقتراح للإدارة','openReq()'],
     ['📱','مشاركة الموقع بكود QR','openQrModal()'],
     ['📲','تثبيت التطبيق على الهاتف','openInstall()']
@@ -1836,7 +1865,7 @@ function adminTab(t){
   if(t==='home'){updateStats();renderReports();loadAttention()}
   if(t==='files')renderAdminFiles();
   if(t==='students')loadStudentsTab();
-  if(t==='settings'&&OWNER){loadTreeCfg();loadTgCfg()}
+  if(t==='settings'&&OWNER){loadTreeCfg();loadTgCfg();loadAiCfg()}
 }
 function renderAdminFiles(){
   const db=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp),q=norm(AF.q);
@@ -1967,3 +1996,575 @@ if(document.readyState==='loading'){
   bootApp();
 }
 window.addEventListener('load',bootApp);
+/* ==========================================================================
+   v13 AI Campus Edition: Gemini Pro Tutor, Interactive MCQ Quiz Bank,
+   Contributors Leaderboard, Course Roadmap, Senior Tips & Q&A Forum
+   ========================================================================== */
+let activeAiTab='tutor';
+let _activeQuiz=null,_quizAnswers={},_quizSubmitted=false,_quizTimer=null,_quizSecLeft=0,_lastGeneratedQuiz=null;
+
+function formatAiText(raw){
+  let s=esc(String(raw||''));
+  const blocks=[];
+  s=s.replace(/```(\w*)\n?([\s\S]*?)```/g,(_,lang,code)=>{
+    const idx=blocks.length;
+    blocks.push(`<pre><code>${code.trim()}</code></pre>`);
+    return `@@CODEBLK${idx}@@`;
+  });
+  s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
+  s=s.replace(/^###\s+(.+)$/gm,'<h4 style="margin:10px 0 4px">$1</h4>');
+  s=s.replace(/^[-*]\s+(.+)$/gm,'• $1');
+  s=s.replace(/\n/g,'<br>');
+  blocks.forEach((b,i)=>{s=s.replace(`@@CODEBLK${i}@@`,b)});
+  return s;
+}
+
+function switchAiTab(tab){
+  activeAiTab=tab||'tutor';
+  document.querySelectorAll('.ai-subpanel').forEach(p=>p.hidden=(p.id!=='aiTab-'+activeAiTab));
+  document.querySelectorAll('[data-ai-tab]').forEach(b=>b.classList.toggle('active',b.dataset.aiTab===activeAiTab));
+  if(activeAiTab==='quizzes')renderQuizBank();
+  if(activeAiTab==='leaderboard')renderLeaderboard();
+  if(activeAiTab==='roadmap')renderRoadmap();
+}
+
+function renderAiHub(){
+  if($('aiStatusPill'))$('aiStatusPill').textContent=AI_ENABLED?'🟢 Gemini Pro متصل':'⚪ بانتظار API Key من الإدارة';
+  if($('addQuizBankBtn'))$('addQuizBankBtn').style.display=isAdmin?'inline-flex':'none';
+  if($('addRoadBtn'))$('addRoadBtn').style.display=OWNER?'inline-flex':'none';
+  if($('roadDeptSel')&&userPath&&userPath.dept&&!$('roadDeptSel').dataset.synced){
+    const val=userPath.track==='خاص'&&DEPT_SPC.includes(userPath.dept)?userPath.dept:'الأقسام العامة';
+    $('roadDeptSel').value=val;$('roadDeptSel').dataset.synced='1';
+  }
+  switchAiTab(activeAiTab);
+}
+
+function openAiForSubject(sub,mode){
+  switchMainView('aiView');
+  if(mode==='quiz'){
+    switchAiTab('quizzes');
+    if($('aiQuizSubj'))$('aiQuizSubj').value=sub||'';
+    if($('aiQuizText'))$('aiQuizText').focus();
+    return;
+  }
+  switchAiTab('tutor');
+  if($('aiTutorSubj'))$('aiTutorSubj').value=sub||'';
+  if($('aiTutorFile'))$('aiTutorFile').value='';
+  if($('aiTutorContextBadge'))$('aiTutorContextBadge').style.display='none';
+  if($('aiTutorPrompt'))$('aiTutorPrompt').focus();
+}
+
+function askAiFromReader(){
+  if(!RD_CUR)return;
+  const sub=RD_CUR.subject||'',title=RD_CUR.title||'';
+  closeReader();
+  switchMainView('aiView');
+  switchAiTab('tutor');
+  if($('aiTutorSubj'))$('aiTutorSubj').value=sub;
+  if($('aiTutorFile'))$('aiTutorFile').value=title;
+  if($('aiTutorContextBadge')){
+    $('aiTutorContextBadge').style.display='block';
+    $('aiTutorContextBadge').innerHTML=`<span class="tag">📄 بتسأل عن: ${esc(title)} (${esc(sub)})</span>`;
+  }
+  if($('aiTutorPrompt')){$('aiTutorPrompt').placeholder='اسأل أي سؤال عن «'+title+'» أو الصق الجزء اللي مش فاهمه...';$('aiTutorPrompt').focus()}
+}
+
+async function askAiTutor(){
+  const q=$('aiTutorPrompt').value.trim();
+  if(!q)return toast('اكتب سؤالك الأول',1);
+  const btn=$('aiTutorSendBtn'),out=$('aiTutorReply');
+  btn.disabled=true;btn.textContent='⏳ Gemini Pro بيفكّر...';
+  out.innerHTML='<div class="ai-reply-box">⏳ جاري تجهيز الشرح بواسطة Gemini Pro...</div>';
+  try{
+    const j=await api('aitutor',{
+      q,
+      subject:$('aiTutorSubj').value.trim(),
+      file:$('aiTutorFile').value.trim(),
+      mode:$('aiTutorMode').value
+    });
+    out.innerHTML=`<div class="ai-reply-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;color:var(--text-muted)"><span>🤖 <b>إجابة ${esc(j.model||'Gemini Pro')}</b></span><button type="button" class="pill-btn" onclick="copyText(window._lastAiAns||'')">📋 نسخ</button></div><div>${formatAiText(j.answer)}</div></div>`;
+    window._lastAiAns=j.answer||'';
+  }catch(e){
+    out.innerHTML=`<div class="ai-reply-box" style="border-right-color:var(--danger)">⚠️ ${esc(e.message||'تعذر الاتصال بـ Gemini Pro')}</div>`;
+  }finally{
+    btn.disabled=false;btn.textContent='✨ اسأل Gemini Pro';
+  }
+}
+
+/* ===== مولّد الكويزات + بنك الاختبارات التفاعلي ===== */
+function renderQuizBank(){
+  const box=$('quizBankList');if(!box)return;
+  const scores=ld('fci_quiz_scores',{});
+  const p=userPath;
+  const list=QUIZZES.slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!list.length){
+    box.innerHTML='<div class="cat-empty-hint">لسه مفيش اختبارات محفوظة في البنك. استخدم مولّد الكويزات بالذكاء الاصطناعي جنبه، أو الأدمن يضيف اختبارات للدفعة!</div>';
+    return;
+  }
+  const matching=p.level?list.filter(q=>q.level===p.level&&(!p.track||q.track===p.track)):list;
+  const shown=matching.length?matching:list;
+  box.innerHTML=shown.map(q=>{
+    const best=scores[q.id];
+    const canDel=isAdmin&&(OWNER||q.by===ME);
+    return `<div class="ev">
+      <div>
+        <b>🧪 ${esc(q.title)}</b> ${best!=null?`<span class="badge-soft badge-ok">أعلى درجة: ${best}%</span>`:''}<br>
+        <small>${esc(q.subject)} • ${(q.questions||[]).length} سؤال • ⏱ ${q.minutes||10} د • ${esc(q.level||'')}</small>
+      </div>
+      <div class="action-links">
+        <button type="button" class="btn sm" onclick="startSavedQuiz('${safeId(q.id)}')">▶ ابدأ الاختبار</button>
+        ${canDel?`<button type="button" class="btn btn-danger sm" onclick="deleteQuiz('${safeId(q.id)}')">🗑️</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startSavedQuiz(id){
+  const q=QUIZZES.find(x=>x.id===id);
+  if(!q)return toast('الاختبار غير موجود',1);
+  startQuizRunner(q,false);
+}
+
+async function generateAiQuiz(){
+  const text=$('aiQuizText').value.trim();
+  const subj=$('aiQuizSubj').value.trim();
+  if(text.length<15)return toast('اكتب الموضوع أو الصق فقرة من المحاضرة (15 حرف على الأقل)',1);
+  const btn=$('aiQuizGenBtn');
+  btn.disabled=true;btn.textContent='⏳ Gemini Pro بيجهّز الأسئلة...';
+  try{
+    const j=await api('aiquiz',{
+      text,subject:subj,
+      count:+$('aiQuizCount').value||5,
+      diff:$('aiQuizDiff').value
+    });
+    _lastGeneratedQuiz=j.quiz;
+    startQuizRunner(j.quiz,isAdmin);
+  }catch(e){
+    toast(e.message||'تعذر توليد الاختبار',1);
+  }finally{
+    btn.disabled=false;btn.textContent='⚡ ولّد الاختبار وابدأ الآن';
+  }
+}
+
+function startQuizRunner(quiz,canSave){
+  clearInterval(_quizTimer);
+  _activeQuiz=quiz;_quizAnswers={};_quizSubmitted=false;
+  _quizSecLeft=Math.max(60,(Number(quiz.minutes)||10)*60);
+  renderQuizModal(canSave);
+  _quizTimer=setInterval(()=>{
+    if(_quizSubmitted||$('toolModal').style.display!=='flex'){clearInterval(_quizTimer);return}
+    _quizSecLeft--;
+    const tEl=$('quizTimerBadge');
+    if(tEl)tEl.textContent='⏱ '+Math.floor(_quizSecLeft/60)+':'+String(_quizSecLeft%60).padStart(2,'0');
+    if(_quizSecLeft<=0){clearInterval(_quizTimer);submitQuizRun(canSave)}
+  },1000);
+}
+
+function renderQuizModal(canSave){
+  const qz=_activeQuiz;if(!qz)return;
+  const qs=qz.questions||[];
+  const mins=Math.floor(_quizSecLeft/60),secs=String(_quizSecLeft%60).padStart(2,'0');
+  let scoreHtml='';
+  if(_quizSubmitted){
+    let ok=0;
+    qs.forEach((q,i)=>{if(_quizAnswers[i]===q.ans)ok++});
+    const pct=qs.length?Math.round(ok/qs.length*100):0;
+    if(qz.id){
+      const sc=ld('fci_quiz_scores',{});
+      sc[qz.id]=Math.max(sc[qz.id]||0,pct);
+      sv('fci_quiz_scores',sc);
+      if(!$('aiView').hidden&&activeAiTab==='quizzes')renderQuizBank();
+    }
+    scoreHtml=`<div class="jump-banner" style="margin-bottom:12px"><div><b>🎯 نتيجتك: ${ok} من ${qs.length} (${pct}%)</b><br><small>${pct>=80?'ممتاز جداً! مستعد للامتحان 🔥':pct>=50?'كويس! راجع الأسئلة الغلط تحت':'محتاج مراجعة سريعة على الجزء ده'}</small></div><button type="button" class="btn sm" onclick="startQuizRunner(_activeQuiz,${!!canSave})">↺ إعادة الاختبار</button></div>`;
+  }
+  const body=qs.map((q,qi)=>{
+    const picked=_quizAnswers[qi];
+    return `<div class="quiz-q-card">
+      <div style="font-weight:800;font-size:14px;margin-bottom:6px">${qi+1}) ${esc(q.q)}</div>
+      ${(q.opts||[]).map((op,oi)=>{
+        let cls='quiz-opt';
+        if(_quizSubmitted){
+          if(oi===q.ans)cls+=' correct';
+          else if(picked===oi&&oi!==q.ans)cls+=' wrong';
+        }else if(picked===oi)cls+=' selected';
+        return `<button type="button" class="${cls}" ${_quizSubmitted?'disabled':''} onclick="selectQuizOpt(${qi},${oi},${!!canSave})"><span>${['أ','ب','ج','د'][oi]||oi+1}.</span><span>${esc(op)}</span></button>`;
+      }).join('')}
+      ${_quizSubmitted&&q.exp?`<div class="quiz-exp">💡 <b>التوضيح:</b> ${esc(q.exp)}</div>`:''}
+    </div>`;
+  }).join('');
+  tool(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <h3 style="margin:0">🧪 ${esc(qz.title||'اختبار MCQ')}</h3>
+      <span id="quizTimerBadge" class="quiz-timer-pill">⏱ ${mins}:${secs}</span>
+    </div>
+    <small style="color:var(--text-muted);display:block;margin-bottom:10px">${esc(qz.subject||'')} • ${qs.length} سؤال</small>
+    ${scoreHtml}${body}
+    ${!_quizSubmitted?`<button type="button" class="btn btn-success" style="width:100%;margin-top:6px" onclick="submitQuizRun(${!!canSave})">✅ تسليم الإجابات وعرض النتيجة</button>`:''}
+    ${canSave&&isAdmin?`<button type="button" class="btn btn-warning" style="width:100%;margin-top:8px" onclick="saveGeneratedQuizToBank()">💾 حفظ الاختبار ده في بنك اختبارات الدفعة</button>`:''}`);
+}
+
+function selectQuizOpt(qi,oi,canSave){
+  if(_quizSubmitted)return;
+  _quizAnswers[qi]=oi;
+  renderQuizModal(canSave);
+}
+
+function submitQuizRun(canSave){
+  clearInterval(_quizTimer);
+  _quizSubmitted=true;
+  renderQuizModal(canSave);
+}
+
+async function saveGeneratedQuizToBank(){
+  if(!_lastGeneratedQuiz)return;
+  const p=userPath.level?userPath:{track:$('addTrack').value,dept:$('addDept').value,level:$('addLevel').value,semester:$('addSemester').value};
+  const payload=Object.assign({},_lastGeneratedQuiz,{track:p.track||'عام',dept:p.dept||'مشترك',level:p.level||'الفرقة الثانية',semester:p.semester||'الفصل الأول'});
+  if(await act('quizadd',payload,'تم حفظ الاختبار في البنك للطلاب ✅'))renderQuizBank();
+}
+
+function openAddQuizModal(){
+  if(!isAdmin)return toast('للمشرفين فقط',1);
+  tool(`<h3>🧪 إضافة اختبار تفاعلي لبنك الاختبارات</h3>
+    <div class="form-grid">
+      <select id="qzTr" class="form-select">${opts(['عام','خاص'],userPath.track||'خاص')}</select>
+      <select id="qzDp" class="form-select">${opts(['مشترك'].concat(DEPTS),userPath.dept||'الذكاء الاصطناعي')}</select>
+      <select id="qzLv" class="form-select">${opts(LEVELS,userPath.level||'الفرقة الثانية')}</select>
+      <select id="qzSm" class="form-select">${opts(['الفصل الأول','الفصل الثاني'],userPath.semester||'الفصل الأول')}</select>
+    </div>
+    <div class="form-grid" style="margin-top:8px">
+      <input id="qzSubj" list="dlSubjects" class="form-input" placeholder="اسم المادة">
+      <input id="qzMin" type="number" min="2" max="120" value="15" class="form-input" placeholder="المدة بالدقائق">
+    </div>
+    <input id="qzTitle" class="form-input" style="margin-top:8px" placeholder="عنوان الاختبار (مثال: مراجعة ميدتيرم 2026)">
+    <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 4px">اكتب كل سؤال في سطر بالشكل: <code>السؤال | اختيار1 | اختيار2 | اختيار3 | اختيار4 | رقم الإجابة الصحيحة (1-4) | شرح اختياري</code></p>
+    <textarea id="qzLines" rows="6" class="form-input" placeholder="ما تعقيد Binary Search؟ | O(n) | O(log n) | O(n^2) | O(1) | 2 | لأننا نقسم المجال لنصفين في كل خطوة"></textarea>
+    <button type="button" class="btn btn-success" style="width:100%;margin-top:10px" onclick="submitNewQuiz()">🚀 نشر الاختبار للطلاب</button>`);
+}
+
+async function submitNewQuiz(){
+  const questions=[];
+  $('qzLines').value.split('\n').forEach(line=>{
+    line=line.trim();if(!line)return;
+    const p=line.split('|').map(x=>x.trim());
+    if(p.length>=6){
+      const ansIdx=Math.max(0,Math.min(3,(parseInt(p[5],10)||1)-1));
+      questions.push({q:p[0],opts:p.slice(1,5),ans:ansIdx,exp:p[6]||''});
+    }
+  });
+  if(!questions.length)return toast('اكتب سؤال واحد على الأقل بالشكل الصحيح المفصول بـ |',1);
+  const res=await act('quizadd',{
+    track:$('qzTr').value,dept:$('qzDp').value,level:$('qzLv').value,semester:$('qzSm').value,
+    subject:$('qzSubj').value.trim(),title:$('qzTitle').value.trim(),minutes:+$('qzMin').value||15,questions
+  });
+  if(res){closeModal('toolModal');renderQuizBank()}
+}
+
+async function deleteQuiz(id){
+  if(await askConfirm('حذف هذا الاختبار التفاعلي؟')){
+    if(await act('quizdel',{id}))renderQuizBank();
+  }
+}
+
+/* ===== لوحة شرف المساهمين ===== */
+function renderLeaderboard(){
+  const box=$('leaderboardList');if(!box)return;
+  const counts={};
+  pubItems().forEach(i=>{
+    const name=String(i.contributor||i.by||'').trim();
+    if(!name||name==='تلقائي')return;
+    const rec=counts[name]=counts[name]||{name,n:0,isStudent:!!i.contributor,subs:new Set()};
+    rec.n++;if(i.contributor)rec.isStudent=true;if(i.subject)rec.subs.add(i.subject);
+  });
+  const arr=Object.values(counts).sort((a,b)=>(b.isStudent-a.isStudent)||(b.n-a.n)).slice(0,25);
+  if(!arr.length){
+    box.innerHTML='<div class="cat-empty-hint">لسه مفيش مساهمين مسجلين — كن أول واحد يظهر في لوحة الشرف!</div>';
+    return;
+  }
+  const badgeOf=n=>n>=20?'👑 أسطورة الكلية':n>=10?'🌟 نجم الدفعة':n>=5?'🔥 بطل الملخصات':'🤝 داعم الدفعة';
+  box.innerHTML=arr.map((c,idx)=>{
+    const medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'#'+(idx+1);
+    return `<div class="lb-row ${idx===0?'top1':''}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="lb-rank">${medal}</div>
+        <div>
+          <b>${esc(c.name)}</b> <span class="badge-soft ${c.isStudent?'badge-ok':'badge-lec'}">${c.isStudent?'طالب مساهم':'مشرف'}</span><br>
+          <small style="color:var(--text-muted)">${badgeOf(c.n)} • ${c.subs.size} مادة</small>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:20px;font-weight:900;color:var(--accent)">${c.n}</div>
+        <small style="color:var(--text-muted)">ملف</small>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ===== خريطة المقررات والمتطلبات ===== */
+const DEFAULT_ROADMAP=[
+  {id:'r1',dept:'الذكاء الاصطناعي',level:'الفرقة الأولى',semester:'الفصل الأول',code:'CS101',name:'مقدمة في علوم الحاسب',hours:3,prereq:''},
+  {id:'r2',dept:'الذكاء الاصطناعي',level:'الفرقة الأولى',semester:'الفصل الأول',code:'CS102',name:'أساسيات البرمجة (C++)',hours:3,prereq:''},
+  {id:'r3',dept:'الذكاء الاصطناعي',level:'الفرقة الأولى',semester:'الفصل الأول',code:'MA101',name:'رياضيات 1 (تفاضل وتكامل)',hours:3,prereq:''},
+  {id:'r4',dept:'الذكاء الاصطناعي',level:'الفرقة الأولى',semester:'الفصل الثاني',code:'CS103',name:'البرمجة الشيئية (OOP)',hours:3,prereq:'أساسيات البرمجة (C++)'},
+  {id:'r5',dept:'الذكاء الاصطناعي',level:'الفرقة الأولى',semester:'الفصل الثاني',code:'MA102',name:'تراكيب محددة (Discrete Math)',hours:3,prereq:'رياضيات 1 (تفاضل وتكامل)'},
+  {id:'r6',dept:'الذكاء الاصطناعي',level:'الفرقة الأولى',semester:'الفصل الثاني',code:'MA103',name:'جبر خطي واحتمالات',hours:3,prereq:'رياضيات 1 (تفاضل وتكامل)'},
+  {id:'r7',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الأول',code:'CS201',name:'تراكيب البيانات (Data Structures)',hours:3,prereq:'البرمجة الشيئية (OOP)'},
+  {id:'r8',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الأول',code:'AI201',name:'مقدمة في الذكاء الاصطناعي',hours:3,prereq:'تراكيب محددة (Discrete Math)'},
+  {id:'r9',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الأول',code:'IS201',name:'قواعد البيانات (Databases)',hours:3,prereq:'أساسيات البرمجة (C++)'},
+  {id:'r10',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الثاني',code:'CS202',name:'تحليل وتصميم الخوارزميات',hours:3,prereq:'تراكيب البيانات (Data Structures)'},
+  {id:'r11',dept:'الذكاء الاصطناعي',level:'الفرقة الثانية',semester:'الفصل الثاني',code:'AI202',name:'تعلم الآلة (Machine Learning)',hours:3,prereq:'مقدمة في الذكاء الاصطناعي'},
+  {id:'r12',dept:'الذكاء الاصطناعي',level:'الفرقة الثالثة',semester:'الفصل الأول',code:'AI301',name:'التعلم العميق (Deep Learning)',hours:3,prereq:'تعلم الآلة (Machine Learning)'},
+  {id:'r13',dept:'الذكاء الاصطناعي',level:'الفرقة الثالثة',semester:'الفصل الأول',code:'AI302',name:'الرؤية بالحاسب (Computer Vision)',hours:3,prereq:'تعلم الآلة (Machine Learning)'},
+  {id:'r14',dept:'الذكاء الاصطناعي',level:'الفرقة الثالثة',semester:'الفصل الثاني',code:'AI303',name:'معالجة اللغات الطبيعية (NLP)',hours:3,prereq:'التعلم العميق (Deep Learning)'},
+  {id:'r15',dept:'هندسة البرمجيات',level:'الفرقة الأولى',semester:'الفصل الأول',code:'CS102',name:'أساسيات البرمجة',hours:3,prereq:''},
+  {id:'r16',dept:'هندسة البرمجيات',level:'الفرقة الأولى',semester:'الفصل الثاني',code:'CS103',name:'البرمجة الشيئية (OOP)',hours:3,prereq:'أساسيات البرمجة'},
+  {id:'r17',dept:'هندسة البرمجيات',level:'الفرقة الثانية',semester:'الفصل الأول',code:'SE201',name:'مقدمة في هندسة البرمجيات',hours:3,prereq:'البرمجة الشيئية (OOP)'},
+  {id:'r18',dept:'هندسة البرمجيات',level:'الفرقة الثانية',semester:'الفصل الثاني',code:'SE202',name:'تحليل وتصميم النظم',hours:3,prereq:'مقدمة في هندسة البرمجيات'},
+  {id:'r19',dept:'الأمن السيبراني',level:'الفرقة الأولى',semester:'الفصل الأول',code:'CS102',name:'أساسيات البرمجة',hours:3,prereq:''},
+  {id:'r20',dept:'الأمن السيبراني',level:'الفرقة الثانية',semester:'الفصل الأول',code:'IT201',name:'شبكات الحاسب',hours:3,prereq:'أساسيات البرمجة'},
+  {id:'r21',dept:'الأمن السيبراني',level:'الفرقة الثانية',semester:'الفصل الثاني',code:'CY202',name:'أمن المعلومات والتشفير',hours:3,prereq:'شبكات الحاسب'},
+  {id:'r22',dept:'نظم المعلومات الحيوية',level:'الفرقة الأولى',semester:'الفصل الأول',code:'BI101',name:'مقدمة في البيولوجيا الجزيئية',hours:3,prereq:''},
+  {id:'r23',dept:'نظم المعلومات الحيوية',level:'الفرقة الثانية',semester:'الفصل الأول',code:'BI201',name:'خوارزميات المعلوماتية الحيوية',hours:3,prereq:'مقدمة في البيولوجيا الجزيئية'},
+  {id:'r24',dept:'الأقسام العامة',level:'الفرقة الأولى',semester:'الفصل الأول',code:'CS101',name:'مقدمة حاسبات وبرمجة 1',hours:3,prereq:''},
+  {id:'r25',dept:'الأقسام العامة',level:'الفرقة الأولى',semester:'الفصل الثاني',code:'CS102',name:'برمجة 2 (OOP)',hours:3,prereq:'مقدمة حاسبات وبرمجة 1'},
+  {id:'r26',dept:'الأقسام العامة',level:'الفرقة الثانية',semester:'الفصل الأول',code:'CS201',name:'تراكيب البيانات',hours:3,prereq:'برمجة 2 (OOP)'},
+  {id:'r27',dept:'الأقسام العامة',level:'الفرقة الثانية',semester:'الفصل الثاني',code:'CS202',name:'نظم التشغيل وقواعد البيانات',hours:3,prereq:'تراكيب البيانات'}
+];
+
+function renderRoadmap(){
+  const sel=$('roadDeptSel'),box=$('roadmapContent');if(!sel||!box)return;
+  const dept=sel.value;
+  const custom=ROADMAP.filter(r=>(dept==='الأقسام العامة'?r.track==='عام':r.dept===dept));
+  const list=custom.length?custom:DEFAULT_ROADMAP.filter(r=>r.dept===dept);
+  const passed=ld('fci_road_passed',[]);
+  const passedNames=new Set(list.filter(c=>passed.includes(c.dept+'|'+c.name)).map(c=>norm(c.name)));
+  const totalHrs=list.reduce((a,c)=>a+(+c.hours||3),0);
+  const doneHrs=list.filter(c=>passedNames.has(norm(c.name))).reduce((a,c)=>a+(+c.hours||3),0);
+  if($('roadStatsBadge'))$('roadStatsBadge').textContent=`مجتاز: ${doneHrs} / ${totalHrs} ساعة`;
+  const byLevel={};
+  list.forEach(c=>{const k=c.level+' — '+c.semester;(byLevel[k]=byLevel[k]||[]).push(c)});
+  const keys=Object.keys(byLevel);
+  if(!keys.length){box.innerHTML='<div class="cat-empty-hint">مفيش مقررات مضافة لهذا القسم بعد.</div>';return}
+  window._roadKeys=[];
+  box.innerHTML=`<div class="road-sem-grid">${keys.map(k=>`<div class="acard" style="margin:0"><h4 style="margin-bottom:10px">📘 ${esc(k)}</h4>${byLevel[k].map(c=>{
+    const key=c.dept+'|'+c.name,kIdx=window._roadKeys.push(key)-1,isPass=passedNames.has(norm(c.name));
+    const hasPre=!!(c.prereq&&c.prereq.trim()),preOk=!hasPre||passedNames.has(norm(c.prereq));
+    const cls=isPass?'passed':(preOk?'open-ready':'locked');
+    const st=isPass?'✅ مجتاز':(preOk?'🔓 متاح للتسجيل':'🔒 يفتح بعد: '+c.prereq);
+    const isCustom=!!ROADMAP.find(x=>x.id===c.id);
+    return `<div class="road-course ${cls}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;flex:1">
+          <input type="checkbox" ${isPass?'checked':''} onchange="togglePassedCourse(window._roadKeys[${kIdx}])" style="margin-top:4px">
+          <div><b>${esc(c.name)}</b> ${c.code?`<small style="opacity:.7">(${esc(c.code)})</small>`:''}<br><small style="color:var(--text-muted)">${c.hours||3} ساعات • ${esc(st)}</small></div>
+        </label>
+        ${OWNER&&isCustom?`<button type="button" class="btn btn-danger sm" onclick="deleteRoad('${safeId(c.id)}')">🗑️</button>`:''}
+      </div>
+    </div>`;
+  }).join('')}</div>`).join('')}</div>`;
+}
+
+function togglePassedCourse(key){
+  const arr=ld('fci_road_passed',[]),i=arr.indexOf(key);
+  if(i>-1)arr.splice(i,1);else arr.push(key);
+  sv('fci_road_passed',arr);renderRoadmap();
+}
+
+function openAddRoadModal(){
+  if(!OWNER)return toast('للمالك فقط',1);
+  tool(`<h3>🗺️ إضافة مقرر لخريطة المقررات</h3>
+    <div class="form-grid">
+      <select id="rdTr" class="form-select">${opts(['عام','خاص'],'خاص')}</select>
+      <select id="rdDp" class="form-select">${opts(['مشترك'].concat(DEPTS),'الذكاء الاصطناعي')}</select>
+      <select id="rdLv" class="form-select">${opts(LEVELS,'الفرقة الثانية')}</select>
+      <select id="rdSm" class="form-select">${opts(['الفصل الأول','الفصل الثاني'],'الفصل الأول')}</select>
+    </div>
+    <div class="form-grid" style="margin-top:8px">
+      <input id="rdCode" class="form-input" placeholder="كود المقرر (مثال: AI202)">
+      <input id="rdHrs" type="number" min="1" max="6" value="3" class="form-input" placeholder="الساعات المعتمدة">
+    </div>
+    <input id="rdName" class="form-input" style="margin-top:8px" placeholder="اسم المقرر">
+    <input id="rdPre" class="form-input" style="margin-top:8px" placeholder="المتطلب السابق (سيبه فاضي لو مفيش)">
+    <button type="button" class="btn btn-success" style="width:100%;margin-top:10px" onclick="submitNewRoad()">➕ إضافة للخريطة</button>`);
+}
+
+async function submitNewRoad(){
+  const res=await act('roadadd',{
+    track:$('rdTr').value,dept:$('rdDp').value,level:$('rdLv').value,semester:$('rdSm').value,
+    code:$('rdCode').value.trim(),hours:+$('rdHrs').value||3,name:$('rdName').value.trim(),prereq:$('rdPre').value.trim()
+  });
+  if(res){closeModal('toolModal');renderRoadmap()}
+}
+
+async function deleteRoad(id){
+  if(await askConfirm('حذف هذا المقرر من الخريطة؟')){
+    if(await act('roaddel',{id}))renderRoadmap();
+  }
+}
+
+/* ===== نصائح الدفعات الأكبر (دليل مذاكرة المادة) ===== */
+function findSubjectTip(sub){
+  const p=userPath;
+  return TIPS.find(t=>t.subject===sub&&t.track===p.track&&t.level===p.level&&t.semester===p.semester&&(t.dept===p.dept||t.dept==='مشترك'))||TIPS.find(t=>t.subject===sub);
+}
+
+function openTipEditor(sub){
+  if(!isAdmin)return toast('للمشرفين فقط',1);
+  const ex=findSubjectTip(sub)||{guide:'',resources:''};
+  tool(`<h3>💡 دليل مذاكرة: ${esc(sub)}</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">اكتب نصائح الدفعات الأكبر (توزيع الدرجات، أهم الشباتر، طريقة الامتحان) وأفضل قنوات يوتيوب أو مراجع.</p>
+    <input type="hidden" id="tipSubj" value="${esc(sub)}">
+    <div class="form-group"><label>إزاي تذاكر المادة دي؟</label><textarea id="tipGuide" rows="5" class="form-input" placeholder="مثال: ركّز على شيتات السكاشن وامتحانات آخر 3 سنين، توزيع الدرجات 40 أعمال سنة و60 فاينال...">${esc(ex.guide||'')}</textarea></div>
+    <div class="form-group"><label>أفضل قنوات يوتيوب / مراجع (اختياري)</label><textarea id="tipRes" rows="3" class="form-input" placeholder="قناة د. فلان على يوتيوب، كتاب كذا...">${esc(ex.resources||'')}</textarea></div>
+    <div style="display:flex;gap:8px">
+      <button type="button" class="btn btn-success" style="flex:1" onclick="submitTipSave()">💾 حفظ النصيحة</button>
+      ${ex.id?`<button type="button" class="btn btn-danger" onclick="deleteTip('${safeId(ex.id)}')">🗑️</button>`:''}
+    </div>`);
+}
+
+async function submitTipSave(){
+  const p=userPath;
+  const res=await act('tipsave',{
+    track:p.track||'عام',dept:p.dept||'مشترك',level:p.level||'الفرقة الثانية',semester:p.semester||'الفصل الأول',
+    subject:$('tipSubj').value,guide:$('tipGuide').value.trim(),resources:$('tipRes').value.trim()
+  });
+  if(res){closeModal('toolModal');render()}
+}
+
+async function deleteTip(id){
+  if(await askConfirm('حذف نصيحة هذه المادة؟')){
+    if(await act('tipdel',{id})){closeModal('toolModal');render()}
+  }
+}
+
+/* ===== ساحة الأسئلة والأجوبة Q&A داخل كل مادة ===== */
+function getSubjectQa(sub){
+  const p=userPath;
+  return QA_LIST.filter(q=>q.subject===sub&&q.track===p.track&&q.level===p.level&&q.semester===p.semester&&(q.dept===p.dept||q.dept==='مشترك')).sort((a,b)=>(b.ts||0)-(a.ts||0));
+}
+
+function getSubjectQuizzes(sub){
+  const p=userPath;
+  return QUIZZES.filter(q=>q.subject===sub&&q.track===p.track&&q.level===p.level&&q.semester===p.semester&&(q.dept===p.dept||q.dept==='مشترك')).sort((a,b)=>(b.ts||0)-(a.ts||0));
+}
+
+function renderSubjectQaPanel(sub){
+  const list=getSubjectQa(sub),nm=ld('fci_name','');
+  let h=`<div class="acard" style="margin-bottom:12px">
+    <h4 style="margin:0 0 8px">❓ عندك سؤال في «${esc(sub)}»؟ اسأل دفعتك والمشرفين</h4>
+    <textarea id="qaNewQ" rows="2" class="form-input" maxlength="600" placeholder="اكتب سؤالك بوضوح هنا..."></textarea>
+    <div class="row" style="margin-top:8px">
+      <input id="qaNewName" class="form-input" style="max-width:160px" maxlength="25" placeholder="اسمك (اختياري)" value="${esc(nm)}">
+      <button type="button" class="btn sm" data-act="qaAsk" data-s="${esc(sub)}">📤 نشر السؤال</button>
+    </div>
+  </div>`;
+  if(!list.length)return h+'<div class="cat-empty-hint">مفيش أسئلة في المادة دي لسه — اسأل أول سؤال!</div>';
+  return h+list.map(q=>{
+    const qid=safeId(q.id);
+    const ansHtml=(q.answers||[]).slice().sort((a,b)=>(b.verified?1:0)-(a.verified?1:0)).map(a=>{
+      const aid=safeId(a.id);
+      return `<div class="qa-ans ${a.verified?'verified':''}">
+        <div>
+          ${a.verified?'<span class="verified-pill">✅ إجابة معتمدة</span> ':''}<b>${esc(a.by)}</b> <small style="color:var(--text-muted)">• ${esc(a.at||'')}</small>
+          <div style="margin-top:3px">${esc(a.text)}</div>
+        </div>
+        ${isAdmin?`<div style="display:flex;gap:4px"><button type="button" class="btn sm ${a.verified?'btn-ghost':'btn-success'}" onclick="verifyQaAns('${qid}','${aid}')" title="اعتماد/إلغاء اعتماد">✅</button><button type="button" class="btn btn-danger sm" onclick="deleteQa('${qid}','${aid}')" title="حذف الإجابة">🗑️</button></div>`:''}
+      </div>`;
+    }).join('');
+    return `<div class="qa-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div><b>❓ ${esc(q.q)}</b><br><small style="color:var(--text-muted)">بواسطة ${esc(q.by)} • ${esc(q.at||'')}</small></div>
+        ${isAdmin?`<button type="button" class="btn btn-danger sm" onclick="deleteQa('${qid}','')">🗑️</button>`:''}
+      </div>
+      ${ansHtml}
+      <div class="comment-input-box" style="margin-top:9px">
+        <input id="qan-${qid}" class="comment-input" style="max-width:105px;flex:none" placeholder="اسمك" maxlength="25" value="${esc(nm)}">
+        <input id="qat-${qid}" class="comment-input" placeholder="اكتب إجابتك لمساعدة زميلك..." maxlength="700">
+        <button type="button" class="btn sm" onclick="submitQaAnswer('${qid}')">رد</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function submitQaQuestion(sub){
+  const q=$('qaNewQ').value.trim(),by=$('qaNewName').value.trim()||'طالب';
+  if(q.length<4)return toast('اكتب سؤالك بوضوح',1);
+  if(by!=='طالب')sv('fci_name',by);
+  const p=userPath;
+  const res=await act('qaask',{track:p.track||'عام',dept:p.dept||'مشترك',level:p.level||'الفرقة الثانية',semester:p.semester||'الفصل الأول',subject:sub,q,by});
+  if(res)$('qaNewQ').value='';
+}
+
+async function submitQaAnswer(qid){
+  const text=$('qat-'+qid).value.trim(),by=$('qan-'+qid).value.trim()||'طالب';
+  if(!text)return toast('اكتب الإجابة أولاً',1);
+  if(by!=='طالب')sv('fci_name',by);
+  const res=await act('qaans',{id:qid,text,by});
+  if(res)$('qat-'+qid).value='';
+}
+
+async function verifyQaAns(qid,aid){await act('qaverify',{id:qid,aid})}
+async function deleteQa(qid,aid){
+  if(await askConfirm(aid?'حذف هذه الإجابة؟':'حذف السؤال بكل إجاباته؟'))await act('qadel',{id:qid,aid});
+}
+
+/* ===== إدارة إعدادات Gemini Pro + اقتراح الوسوم للأدمن ===== */
+function syncAiCustomModel(){
+  const sel=$('aiModelSel'),cus=$('aiCustomModel');
+  if(!sel||!cus)return;
+  cus.style.display=sel.value==='custom'?'block':'none';
+}
+
+async function loadAiCfg(){
+  try{
+    const a=(await api('aiget')).ai||{};
+    if($('aiKeyInput'))$('aiKeyInput').placeholder=a.hasKey?'✅ المفتاح محفوظ بأمان على السيرفر (سيبه فاضي لو مش هتغيره)':'Gemini API Key من Google AI Studio';
+    if($('aiDailyLimit'))$('aiDailyLimit').value=a.dailyLimit||250;
+    const m=a.model||'gemini-2.5-pro';
+    if($('aiModelSel')){
+      const hasOpt=Array.from($('aiModelSel').options).some(o=>o.value===m);
+      if(hasOpt){$('aiModelSel').value=m;$('aiCustomModel').style.display='none'}
+      else{$('aiModelSel').value='custom';$('aiCustomModel').value=m;$('aiCustomModel').style.display='block'}
+    }
+    if($('aiCfgInfo'))$('aiCfgInfo').innerHTML=(a.hasKey?'🟢 <b>مفعّل</b>':'🔴 <b>غير مفعّل</b>')+' • الموديل الحالي: <code dir="ltr">'+esc(m)+'</code> • استهلاك اليوم: <b>'+(a.usedToday||0)+' / '+(a.dailyLimit||250)+'</b>';
+  }catch(e){}
+}
+
+async function aiSave(){
+  const sel=$('aiModelSel').value;
+  const model=sel==='custom'?$('aiCustomModel').value.trim():sel;
+  if(!model)return toast('اختار أو اكتب اسم الموديل',1);
+  const res=await act('aiset',{key:$('aiKeyInput').value.trim(),model,dailyLimit:+$('aiDailyLimit').value||250});
+  if(res){$('aiKeyInput').value='';loadAiCfg()}
+}
+
+async function aiClearKey(){
+  if(await askConfirm('حذف مفتاح Gemini API وإيقاف ميزات الذكاء الاصطناعي؟')){
+    if(await act('aiset',{clearKey:true}))loadAiCfg();
+  }
+}
+
+async function aiTest(){
+  const btn=$('aiTestBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ جاري التجربة...'}
+  try{
+    const j=await api('aitest');
+    toast(j.msg||'متصل بنجاح ✅');
+    loadAiCfg();
+  }catch(e){toast(e.message||'فشل الاتصال',1)}
+  finally{if(btn){btn.disabled=false;btn.textContent='⚡ تجربة الاتصال بـ Pro'}}
+}
+
+async function suggestTagsWithAi(){
+  const title=$('addTitle').value.trim(),subject=$('addSubject').value.trim();
+  if(!title)return toast('اكتب عنوان الملف الأول عشان الـ AI يقترحلك الوسوم والتصنيف',1);
+  const btn=$('aiTagBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ بيقترح...'}
+  try{
+    const j=await api('aitags',{title,subject});
+    if(j.tags)$('addTags').value=j.tags;
+    if(j.type&&TYPES.includes(j.type)){$('addType').value=j.type;$('addType').dispatchEvent(new Event('change'))}
+    if(j.week&&WEEKS.includes(j.week))$('addWeek').value=j.week;
+    toast('تم اقتراح الوسوم والتصنيف بواسطة Gemini Pro ✨');
+  }catch(e){toast(e.message||'خطأ',1)}
+  finally{if(btn){btn.disabled=false;btn.textContent='✨ اقتراح وسوم وتصنيف بالـ AI'}}
+}

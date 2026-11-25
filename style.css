@@ -1779,3 +1779,208 @@ body.dark-mode .tag { color: #93c5fd; background: rgba(59, 130, 246, 0.2); }
   font-size: 12px;
   font-weight: 700;
 }
+/* ==========================================================================
+   v13 AI Campus Edition: Gemini Pro Tutor, MCQ Quiz Runner, Leaderboard,
+   Course Roadmap, Senior Study Tips & Subject Q&A Forum
+   ========================================================================== */
+.hub-subtabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.hub-stab {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hub-stab:hover { border-color: var(--brand); transform: translateY(-1px); }
+.hub-stab.active {
+  background: linear-gradient(135deg, var(--brand), var(--brand-indigo));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.45);
+}
+
+/* AI Tutor Output */
+.ai-reply-box {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-right: 4px solid var(--brand);
+  text-align: right;
+  font-size: 14px;
+  line-height: 1.8;
+  animation: fadeIn 0.25s ease;
+}
+.ai-reply-box pre {
+  direction: ltr;
+  text-align: left;
+  background: #0b1120;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 12.5px;
+  margin: 8px 0;
+}
+.ai-reply-box code {
+  direction: ltr;
+  display: inline-block;
+  background: var(--bg-subtle);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 12.5px;
+}
+.ai-reply-box pre code { background: transparent; padding: 0; color: inherit; }
+
+/* Interactive MCQ Quiz Runner */
+.quiz-q-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+.quiz-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: right;
+  padding: 10px 12px;
+  margin-top: 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-canvas);
+  color: var(--text-main);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.quiz-opt:hover:not(:disabled) { border-color: var(--brand); background: var(--bg-subtle); }
+.quiz-opt.selected { border-color: var(--brand); background: rgba(59, 130, 246, 0.14); }
+.quiz-opt.correct { border-color: var(--success); background: rgba(16, 185, 129, 0.16); color: var(--success); }
+.quiz-opt.wrong { border-color: var(--danger); background: rgba(239, 68, 68, 0.14); color: var(--danger); }
+.quiz-exp {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.quiz-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--accent);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Contributors Leaderboard */
+.lb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.lb-row.top1 { border-color: rgba(245, 158, 11, 0.55); background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), var(--bg-surface)); }
+.lb-rank { font-size: 22px; min-width: 34px; text-align: center; font-weight: 900; }
+
+/* Course Roadmap */
+.road-sem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.road-course {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-right: 4px solid var(--brand);
+  margin-bottom: 8px;
+  transition: all 0.16s ease;
+}
+.road-course.passed { border-right-color: var(--success); opacity: 0.78; }
+.road-course.locked { border-right-color: var(--danger); }
+.road-course.open-ready { border-right-color: var(--accent); }
+
+/* Senior Tips & Q&A inside Subject */
+.senior-tip-box {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(59, 130, 246, 0.08));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  text-align: right;
+  font-size: 13px;
+}
+.sub-tools-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.qa-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+  margin-bottom: 10px;
+}
+.qa-ans {
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: var(--bg-subtle);
+  margin-top: 7px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.qa-ans.verified {
+  border-right: 4px solid var(--success);
+  background: rgba(16, 185, 129, 0.1);
+}
+.verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--success);
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+}

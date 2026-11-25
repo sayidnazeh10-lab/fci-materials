@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
   <div id="bg" aria-hidden="true"><div class="bg-dots"></div></div>
@@ -71,6 +71,7 @@
         <button type="button" class="mnav-btn" data-main-tab="scheduleView" onclick="switchMainView('scheduleView')">🗓 الجدول والغياب</button>
         <button type="button" class="mnav-btn" data-main-tab="gpaView" onclick="switchMainView('gpaView')">🧮 حاسبة GPA والدرجات</button>
         <button type="button" class="mnav-btn" data-main-tab="studyView" onclick="switchMainView('studyView')">⏱️ التسليمات والمذاكرة</button>
+        <button type="button" class="mnav-btn" data-main-tab="aiView" onclick="switchMainView('aiView')">🤖 الذكاء والاختبارات</button>
       </nav>
     </div>
   </header>
@@ -87,6 +88,7 @@
           <button type="button" id="rdPrev" class="rd-btn" onclick="stepReader(-1)" title="الملف السابق (السهم الأيمن)">▶ <span class="rd-lbl">السابق</span></button>
           <button type="button" id="rdNext" class="rd-btn" onclick="stepReader(1)" title="الملف التالي (السهم الأيسر)"><span class="rd-lbl">التالي</span> ◀</button>
           <button type="button" id="rdDone" class="rd-btn" onclick="toggleReaderDone()" title="تحديد كمكتمل">✔ <span class="rd-lbl">تم</span></button>
+          <button type="button" id="rdAi" class="rd-btn" onclick="askAiFromReader()" title="اسأل Gemini Pro عن الملف">🤖 <span class="rd-lbl">شرح AI</span></button>
           <button type="button" id="rdNote" class="rd-btn" onclick="openReaderNote()" title="ملاحظة على الملف">📝</button>
           <a id="rdDl" class="rd-btn" href="#" target="_blank" rel="noopener noreferrer" title="تحميل مباشر">⬇</a>
           <a id="rdExt" class="rd-btn" href="#" target="_blank" rel="noopener noreferrer" title="فتح في نافذة جديدة">↗</a>
@@ -186,6 +188,8 @@
           <button type="button" class="btn btn-ghost sm" onclick="openGlobalSearch()">🔍 بحث في كل الملفات</button>
           <button type="button" class="btn btn-ghost sm" onclick="openSaved()">🔖 المحفوظات</button>
           <button type="button" class="btn btn-ghost sm" onclick="openContribute()">➕ ساهم بملف</button>
+          <button type="button" class="btn btn-ghost sm" onclick="switchMainView('aiView');switchAiTab('tutor')">🤖 المساعد الذكي</button>
+          <button type="button" class="btn btn-ghost sm" onclick="switchMainView('aiView');switchAiTab('leaderboard')">🏆 لوحة الشرف</button>
         </div>
       </section>
 
@@ -460,6 +464,114 @@
       </div>
     </section>
 
+
+    <!-- ==================== 4.5 AI CAMPUS HUB (GEMINI PRO, QUIZZES, LEADERBOARD, ROADMAP) ==================== -->
+    <section id="aiView" class="drawer-label" hidden>
+      <div class="chosen-level-bar hero-bar">
+        <span>🤖 مركز الذكاء الاصطناعي والاختبارات التفاعلية والخريطة الدراسية</span>
+        <span id="aiStatusPill" class="path-pill">Gemini Pro</span>
+      </div>
+
+      <div class="hub-subtabs" role="tablist">
+        <button type="button" class="hub-stab active" data-ai-tab="tutor" onclick="switchAiTab('tutor')">🤖 المساعد الذكي (Pro)</button>
+        <button type="button" class="hub-stab" data-ai-tab="quizzes" onclick="switchAiTab('quizzes')">🧪 بنك الاختبارات ومولّد MCQ</button>
+        <button type="button" class="hub-stab" data-ai-tab="leaderboard" onclick="switchAiTab('leaderboard')">🏆 لوحة شرف المساهمين</button>
+        <button type="button" class="hub-stab" data-ai-tab="roadmap" onclick="switchAiTab('roadmap')">🗺️ خريطة المقررات</button>
+      </div>
+
+      <!-- Sub-tab 1: AI Study Tutor -->
+      <div id="aiTab-tutor" class="ai-subpanel">
+        <div class="acard">
+          <h3>🤖 مساعد المذاكرة الذكي (Gemini Pro)</h3>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px">اسأل عن أي مفهوم أو مسألة أو الصق كود مش فاهمه وهيشرحهولك بالعامية المصرية خطوة بخطوة مع أمثلة.</p>
+          <div class="form-grid" style="margin-bottom:10px">
+            <input type="text" id="aiTutorSubj" list="dlSubjects" class="form-input" placeholder="اسم المادة (اختياري — مثال: تراكيب البيانات)">
+            <select id="aiTutorMode" class="form-select">
+              <option value="explain">💡 شرح وتبسيط المفهوم</option>
+              <option value="code">💻 شرح أو حل كود برمجي</option>
+              <option value="summary">📝 تلخيص نقاط للامتحان</option>
+            </select>
+          </div>
+          <input type="hidden" id="aiTutorFile" value="">
+          <div id="aiTutorContextBadge" style="display:none;margin-bottom:8px;font-size:12px"></div>
+          <textarea id="aiTutorPrompt" rows="4" class="form-input" placeholder="اكتب سؤالك هنا أو الصق الكود/الفقرة اللي عايز تفهمها..."></textarea>
+          <div class="row" style="margin-top:10px">
+            <button type="button" id="aiTutorSendBtn" class="btn" style="flex:1" onclick="askAiTutor()">✨ اسأل Gemini Pro</button>
+            <button type="button" class="btn btn-ghost sm" onclick="$('aiTutorPrompt').value='';$('aiTutorReply').innerHTML=''">مسح</button>
+          </div>
+          <div id="aiTutorReply"></div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 2: Interactive Quiz Bank + AI Quiz Generator -->
+      <div id="aiTab-quizzes" class="ai-subpanel" hidden>
+        <div class="two-col">
+          <div class="acard" style="margin-bottom:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+              <h3 style="margin:0">🧪 بنك الاختبارات التفاعلية (MCQ)</h3>
+              <button type="button" id="addQuizBankBtn" class="btn btn-success sm" style="display:none" onclick="openAddQuizModal()">➕ إضافة اختبار للبنك</button>
+            </div>
+            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px">اختبارات إلكترونية بتايمر وتصحيح فوري وشرح لكل إجابة لمراجعة الميدتيرم والفاينال.</p>
+            <div id="quizBankList"></div>
+          </div>
+
+          <div class="acard" style="margin-bottom:0">
+            <h3>⚡ مولّد الكويزات الفوري بالذكاء الاصطناعي</h3>
+            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px">الصق ملخص المحاضرة أو اكتب اسم الموضوع، وهيتعملك اختبار MCQ فوري بتايمر وتصحيح تلقائي.</p>
+            <input type="text" id="aiQuizSubj" list="dlSubjects" class="form-input" placeholder="اسم المادة (مثال: نظم التشغيل)">
+            <div class="form-grid" style="margin-top:8px">
+              <select id="aiQuizCount" class="form-select">
+                <option value="5">5 أسئلة (سريع)</option>
+                <option value="8">8 أسئلة (متوسط)</option>
+                <option value="10">10 أسئلة (شامل)</option>
+              </select>
+              <select id="aiQuizDiff" class="form-select">
+                <option value="سهل">مستوى سهل</option>
+                <option value="متوسط" selected>مستوى متوسط</option>
+                <option value="صعب">مستوى صعب (امتحان)</option>
+              </select>
+            </div>
+            <textarea id="aiQuizText" rows="5" class="form-input" style="margin-top:8px" placeholder="الصق نص المحاضرة أو الملخص أو اكتب الموضوعات اللي عايز تمتحن فيها..."></textarea>
+            <button type="button" id="aiQuizGenBtn" class="btn btn-warning" style="width:100%;margin-top:10px" onclick="generateAiQuiz()">⚡ ولّد الاختبار وابدأ الآن</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 3: Contributors Leaderboard -->
+      <div id="aiTab-leaderboard" class="ai-subpanel" hidden>
+        <div class="acard">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <h3 style="margin:0">🏆 لوحة شرف المساهمين</h3>
+            <button type="button" class="btn btn-success sm" onclick="openContribute()">➕ ساهم بملف وادخل اللوحة</button>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px">تكريم للطلاب والمشرفين اللي ساهموا بملخصات ومحاضرات وامتحانات لمساعدة زمايلهم في الكلية.</p>
+          <div id="leaderboardList"></div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 4: Course Roadmap & Prerequisites -->
+      <div id="aiTab-roadmap" class="ai-subpanel" hidden>
+        <div class="acard">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <h3 style="margin:0">🗺️ خريطة المقررات والمتطلبات السابقة</h3>
+            <button type="button" id="addRoadBtn" class="btn btn-success sm owner-only" style="display:none" onclick="openAddRoadModal()">➕ إضافة مقرر للخريطة</button>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px">علّم على المواد اللي اجتزتها (✔) عشان تعرف فوراً إيه المواد المفتوحة لك في التسجيل (🔓) وإيه اللي مقفول بسبب متطلب سابق (🔒).</p>
+          <div class="row" style="margin-bottom:12px">
+            <select id="roadDeptSel" class="form-select" style="max-width:260px" onchange="renderRoadmap()">
+              <option value="الذكاء الاصطناعي">🤖 الذكاء الاصطناعي (خاص)</option>
+              <option value="هندسة البرمجيات">💻 هندسة البرمجيات (خاص)</option>
+              <option value="الأمن السيبراني">🛡️ الأمن السيبراني (خاص)</option>
+              <option value="نظم المعلومات الحيوية">🧬 نظم المعلومات الحيوية (خاص)</option>
+              <option value="الأقسام العامة">🏛️ الأقسام العامة</option>
+            </select>
+            <span id="roadStatsBadge" class="tag"></span>
+          </div>
+          <div id="roadmapContent"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ==================== 5. ADMIN LOGIN & DASHBOARD ==================== -->
     <section id="adminLogin" class="drawer-label" hidden>
       <h2>دخول الإدارة 🔐</h2>
@@ -517,6 +629,8 @@
           <button type="button" class="tile" onclick="openDash()"><span>📈</span>إحصائيات</button>
           <button type="button" class="tile" onclick="exportCsv()"><span>📤</span>تصدير CSV</button>
           <button type="button" class="tile" onclick="openQrModal()"><span>📱</span>QR للموقع</button>
+          <button type="button" class="tile" onclick="openAddQuizModal()"><span>🧪</span>إضافة اختبار MCQ</button>
+          <button type="button" class="tile owner-only" onclick="openAddRoadModal()"><span>🗺️</span>إضافة للخريطة</button>
         </div>
       </div>
 
@@ -547,7 +661,10 @@
             <input type="date" id="addDeadline" class="form-input" style="display:none" title="تاريخ التسليم">
             <label style="font-size:12px;color:var(--text-muted)">نشر في وقت لاحق (اختياري)<input type="datetime-local" id="addPub" class="form-input"></label>
           </div>
-          <button type="button" class="btn" onclick="saveMaterial()" style="width:100%;margin-top:14px">🚀 نشر الملف</button>
+          <div class="row" style="margin-top:12px">
+            <button type="button" class="btn" onclick="saveMaterial()" style="flex:1">🚀 نشر الملف</button>
+            <button type="button" id="aiTagBtn" class="btn btn-warning" onclick="suggestTagsWithAi()">✨ اقتراح وسوم وتصنيف بالـ AI</button>
+          </div>
         </div>
         <div class="acard">
           <h4>➕ إضافة جماعية</h4>
@@ -674,6 +791,26 @@
           <button type="button" class="btn btn-danger" onclick="clearAllData()">تصفير السيستم</button>
         </div>
         <div class="acard owner-only">
+          <h4>🤖 ربط الذكاء الاصطناعي (Gemini Pro API)</h4>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">هات <b>API Key</b> من <b>Google AI Studio</b> (aistudio.google.com) وحطه هنا. المفتاح بيتحفظ مشفّر على السيرفر بس ومش بيظهر للطلاب. <b>ملحوظة:</b> اشتراك Google AI Pro الشخصي منفصل عن فواتير Gemini API.</p>
+          <input id="aiKeyInput" type="password" class="form-input" placeholder="Gemini API Key (سيبه فاضي لو مش هتغيره)" autocomplete="off">
+          <div class="form-grid" style="margin-top:8px">
+            <select id="aiModelSel" class="form-select" onchange="syncAiCustomModel()">
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro (افتراضي — أقوى وأدق)</option>
+              <option value="gemini-pro-latest">Gemini Pro Latest (أحدث نسخة Pro)</option>
+              <option value="custom">✏️ اسم موديل Pro مخصص...</option>
+            </select>
+            <input id="aiCustomModel" type="text" class="form-input" placeholder="اكتب اسم الموديل (مثال: gemini-2.5-pro)" style="display:none" dir="ltr">
+            <input id="aiDailyLimit" type="number" min="10" max="5000" value="250" class="form-input" placeholder="الحد اليومي للطلبات (مثال: 250)">
+          </div>
+          <p id="aiCfgInfo" style="font-size:12px;margin:8px 0 0;color:var(--text-muted)"></p>
+          <div class="row" style="margin-top:8px">
+            <button type="button" class="btn" onclick="aiSave()">💾 حفظ الإعدادات</button>
+            <button type="button" id="aiTestBtn" class="btn btn-warning" onclick="aiTest()">⚡ تجربة الاتصال بـ Pro</button>
+            <button type="button" class="btn btn-danger sm" onclick="aiClearKey()">إزالة المفتاح</button>
+          </div>
+        </div>
+        <div class="acard owner-only">
           <h4>✈️ ربط تليجرام</h4>
           <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">كلّم <b>@BotFather</b> وأنشئ بوت بـ /newbot وخد الـ Token، وضيف البوت أدمن في الجروب أو القناة.</p>
           <input id="tgToken" type="password" class="form-input" placeholder="Bot Token (سيبه فاضي لو مش هتغيره)" autocomplete="off">
@@ -707,10 +844,11 @@
     <button type="button" data-main-tab="scheduleView" onclick="switchMainView('scheduleView')"><span>🗓</span>الجدول</button>
     <button type="button" data-main-tab="gpaView" onclick="switchMainView('gpaView')"><span>🧮</span>GPA</button>
     <button type="button" data-main-tab="studyView" onclick="switchMainView('studyView')"><span>⏱️</span>المذاكرة</button>
+    <button type="button" data-main-tab="aiView" onclick="switchMainView('aiView')"><span>🤖</span>الذكاء</button>
   </nav>
 
   <button type="button" id="scrollTopBtn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى" aria-label="الأعلى">↑</button>
 
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
