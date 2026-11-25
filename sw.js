@@ -1,10 +1,10 @@
-// FCI-Materials Service Worker (v9 AutoSync) — Fast Offline Support + Instant Updates
-const CACHE_NAME = 'fci-materials-v9';
+// FCI-Materials Service Worker (v12 Ultimate) — Network-First + Safe Navigation Fallback
+const CACHE_NAME = 'fci-materials-v12';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './style.css?v=9',
-  './app.js?v=9',
+  './style.css?v=12',
+  './app.js?v=12',
   './manifest.webmanifest',
   './icon.svg',
   './icon-192.png',
@@ -30,21 +30,28 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  const url = new URL(req.url);
 
-  // Never intercept Google Apps Script API or external requests
+  const url = new URL(req.url);
+  // Never intercept Google Apps Script API or external requests.
   if (url.origin !== self.location.origin) return;
 
-  // Network-First for HTML/CSS/JS so updates reflect immediately, fallback to cache offline
   event.respondWith(
-    fetch(req)
-      .then(res => {
-        if (res && res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(req, clone)).catch(() => {});
-        }
-        return res;
-      })
-      .catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
+    fetch(req).then(res => {
+      if (res && res.ok) {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(req, clone)).catch(() => {});
+      }
+      return res;
+    }).catch(async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+
+      // Only use the app shell for document navigations, never for missing JS/CSS/images.
+      if (req.mode === 'navigate') {
+        const shell = await caches.match('./index.html');
+        if (shell) return shell;
+      }
+      return Response.error();
+    })
   );
 });

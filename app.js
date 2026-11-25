@@ -12,8 +12,32 @@ const COMMON_LEVELS=['الفرقة الأولى','الفرقة الثانية'];
 const trackLabel=t=>t==='خاص'?'البرامج الخاصة':'الأقسام العامة';
 const deptsOf=t=>t==='خاص'?DEPT_SPC:DEPT_GEN;
 const deptBtnsHtml=t=>(t==='خاص'?'':'<button class="btn" data-k="dept" data-v="مشترك" data-n="semesterStep">📚 المواد المشتركة فقط</button>')+deptsOf(t).map(d=>`<button class="btn" data-k="dept" data-v="${esc(d)}" data-n="levelStep">${esc(d)}</button>`).join('');
-const DEPT_FIX={'علوم حاسب':'علوم الحاسب','نظم معلومات':'نظم المعلومات','المعلوماتية الحيوية':'نظم المعلومات الحيوية'};
-const fixItems=a=>(a||[]).map(i=>DEPT_FIX[i.dept]?Object.assign({},i,{dept:DEPT_FIX[i.dept]}):i);
+const DEPT_FIX={'علوم حاسب':'علوم الحاسب','نظم معلومات':'نظم المعلومات','المعلوماتية الحيوية':'نظم المعلومات الحيوية','المعلوماتيه الحيويه':'نظم المعلومات الحيوية','الذكاء الأصطناعي':'الذكاء الاصطناعي','ذكاء اصطناعي':'الذكاء الاصطناعي','الامن السيبراني':'الأمن السيبراني','هندسه البرمجيات':'هندسة البرمجيات','الوسائط المتعدده':'الوسائط المتعددة'};
+function normOneItem(i){
+  if(!i||typeof i!=='object')return i;
+  const o=Object.assign({},i);
+  o.dept=String(o.dept||'').trim();
+  if(DEPT_FIX[o.dept])o.dept=DEPT_FIX[o.dept];
+  o.track=String(o.track||'').trim();
+  if(o.track==='البرامج الخاصة'||o.track==='برامج خاصة')o.track='خاص';
+  else if(o.track==='الأقسام العامة'||o.track==='أقسام عامة')o.track='عام';
+  if(DEPT_SPC.includes(o.dept))o.track='خاص';
+  else if(DEPT_GEN.includes(o.dept))o.track='عام';
+  if(o.track!=='عام'&&o.track!=='خاص')o.track='عام';
+  if(!o.dept)o.dept='مشترك';
+  o.level=String(o.level||'').trim();
+  const lvMap={'الفرقة الاولى':'الفرقة الأولى','الفرقه الاولى':'الفرقة الأولى','الفرقة الثانيه':'الفرقة الثانية','الفرقه الثانيه':'الفرقة الثانية','الفرقة الثالثه':'الفرقة الثالثة','الفرقه الثالثه':'الفرقة الثالثة','الفرقة الرابعه':'الفرقة الرابعة','الفرقه الرابعه':'الفرقة الرابعة'};
+  if(lvMap[o.level])o.level=lvMap[o.level];
+  o.semester=String(o.semester||'').trim();
+  const smMap={'الفصل الاول':'الفصل الأول','الترم الأول':'الفصل الأول','الترم الاول':'الفصل الأول','الترم الثاني':'الفصل الثاني','الترم الثانى':'الفصل الثاني','الفصل الثانى':'الفصل الثاني'};
+  if(smMap[o.semester])o.semester=smMap[o.semester];
+  o.type=String(o.type||'').trim();
+  if(!TYPES.includes(o.type))o.type='محاضرات';
+  o.subject=String(o.subject||'').trim();
+  o.title=String(o.title||'').trim();
+  return o;
+}
+const fixItems=a=>(a||[]).map(normOneItem);
 const LEVELS=['الفرقة الأولى','الفرقة الثانية','الفرقة الثالثة','الفرقة الرابعة'];
 const TYPES=['محاضرات','سكاشن','ملخصات','امتحانات سابقة','تكليفات'];
 const WEEKS=['عام',...Array.from({length:16},(_,i)=>'الأسبوع '+(i+1)),'ميدتيرم','فاينال'];
@@ -24,6 +48,7 @@ const GRADE_MIGRATE={'A+ (90%+)':'A (90-100)','A (85-89%)':'A- (85-90)','B+ (80-
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeId=s=>String(s??'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64);
+const safeHref=u=>esc(safeUrl(u)||'#');
 function ld(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}}
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 const getDB=()=>DB;
@@ -68,8 +93,9 @@ function resolvePrompt(ok){
 $('promptInput').addEventListener('keydown',e=>{if(e.key==='Enter')resolvePrompt(true)});
 function debounce(fn,ms=130){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
 
-function safeUrl(s){try{const u=new URL(s);return /^https?:$/.test(u.protocol)?u.href:''}catch(e){return ''}}
+function safeUrl(s){try{const u=new URL(String(s||''));if(!/^https?:$/.test(u.protocol)||u.username||u.password)return '';return u.href}catch(e){return ''}}
 function getDL(l){
+  l=safeUrl(l);if(!l)return '';
   let m=l.match(/docs\.google\.com\/(document|presentation|spreadsheets)\/d\/([\w-]+)/);
   if(m)return `https://docs.google.com/${m[1]}/d/${m[2]}/export?format=${m[1]==='spreadsheets'?'xlsx':m[1]==='presentation'?'pptx':'pdf'}`;
   if(l.includes('drive.google.com')&&!l.includes('/folders/')){m=l.match(/\/d\/([\w-]+)/)||l.match(/[?&]id=([\w-]+)/);if(m)return `https://drive.usercontent.google.com/download?id=${m[1]}&export=download&confirm=t`}
@@ -100,7 +126,10 @@ $('themeToggleBtn').onclick=()=>{
 /* ===== تهيئة قوائم المواد والإدارة ===== */
 $('deptBtns').innerHTML=deptBtnsHtml('عام');
 $('levelBtns').innerHTML=LEVELS.map(l=>`<button class="btn" data-k="level" data-v="${esc(l)}" data-n="semesterStep">${esc(l)}</button>`).join('');
-function fillAddDept(){$('addDept').innerHTML=opts(['مشترك'].concat(deptsOf($('addTrack').value)))}
+function fillAddDept(){
+  const tr=$('addTrack').value;
+  $('addDept').innerHTML=tr==='خاص'?opts(deptsOf('خاص').concat(['مشترك'])):opts(['مشترك'].concat(deptsOf('عام')));
+}
 function autoDept(){if($('addTrack').value==='عام'&&COMMON_LEVELS.indexOf($('addLevel').value)>-1)$('addDept').value='مشترك'}
 fillAddDept();
 function saveLastAddPath(){
@@ -138,6 +167,7 @@ $('weekFilter').innerHTML='<option value="">كل الأسابيع</option>'+opts
 $('typeFilter').innerHTML='<option value="">كل الأنواع</option>'+opts(TYPES);
 $('addType').onchange=()=>{$('addDeadline').style.display=$('addType').value==='تكليفات'?'block':'none'};
 $('editType').innerHTML=opts(TYPES);$('editTrack').innerHTML=opts(['عام','خاص']);$('editDept').innerHTML=opts(['مشترك'].concat(DEPTS));$('editLevel').innerHTML=opts(LEVELS);$('editSem').innerHTML=opts(['الفصل الأول','الفصل الثاني']);
+$('editDept').addEventListener('change',()=>{const d=$('editDept').value;if(DEPT_SPC.includes(d))$('editTrack').value='خاص';else if(DEPT_GEN.includes(d))$('editTrack').value='عام'});
 restoreLastAddPath();
 
 /* ===== التنقل بين الأقسام الرئيسية الخمسة ===== */
@@ -253,12 +283,14 @@ function renderScheduleHub(){
   }
 
   $('attendanceCardsList').innerHTML=attendanceList.map(att=>{
-    const ratio=att.absences/att.max;
+    const absences=Math.max(0,Math.min(1000,Number(att.absences)||0));
+    const maxAbsences=Math.max(1,Math.min(1000,Number(att.max)||4));
+    const ratio=absences/maxAbsences;
     const col=ratio>=0.75?'var(--danger-color)':ratio>=0.5?'var(--warning-color)':'var(--success-color)';
     return `<div style="padding:10px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border-col);margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <b style="font-size:13px">${esc(att.course)}</b>
-        <span style="font-size:12px;font-weight:700;color:${col}">${att.absences} / ${att.max} غياب</span>
+        <span style="font-size:12px;font-weight:700;color:${col}">${absences} / ${maxAbsences} غياب</span>
       </div>
       <div class="pbar" style="margin-bottom:8px"><i style="width:${Math.min(100,ratio*100)}%;background:${col}"></i></div>
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -468,7 +500,7 @@ function renderStudyHub(){
   /* التكليفات المرفوعة على المنصة */
   const p=userPath;
   const platTasks=getDB().filter(i=>i.type==='تكليفات'&&(!p.track||i.track===p.track)&&(!p.level||i.level===p.level));
-  $('platformAssignmentsBox').innerHTML=platTasks.length?`<div class="upcoming" style="margin-bottom:12px"><strong>📌 تكليفات مرفوعة على المنصة:</strong>${platTasks.map(i=>`<div style="margin-top:4px">• <b>${esc(i.subject)}</b>: ${esc(i.title)} ${dlBadge(i.deadline)} <a href="${esc(i.viewLink)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-color)">فتح الملف ↗</a></div>`).join('')}</div>`:'';
+  $('platformAssignmentsBox').innerHTML=platTasks.length?`<div class="upcoming" style="margin-bottom:12px"><strong>📌 تكليفات مرفوعة على المنصة:</strong>${platTasks.map(i=>`<div style="margin-top:4px">• <b>${esc(i.subject)}</b>: ${esc(i.title)} ${dlBadge(i.deadline)} <a href="${safeHref(i.viewLink)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-color)">فتح الملف ↗</a></div>`).join('')}</div>`:'';
 
   const list=personalTasks.filter(t=>{
     if(activeTaskFilter==='pending')return !t.done;
@@ -640,6 +672,7 @@ function togglePomoSound(){
 /* ===== الإدارة وربط Google Sheets ===== */
 $('adminUsername').addEventListener('keydown',e=>{if(e.key==='Enter')$('adminPassword').focus()});
 $('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')checkLogin()});
+if($('adminOtp'))$('adminOtp').addEventListener('keydown',e=>{if(e.key==='Enter')checkLogin()});
 function updateStats(){
   const db=getDB();$('statTotal').textContent=db.length;
   $('statLecSec').textContent=db.filter(i=>i.type==='محاضرات'||i.type==='سكاشن').length;
@@ -665,6 +698,36 @@ function setQuickFilter(f){
   QF=f||'all';
   document.querySelectorAll('#quickFilterBar .qf-pill').forEach(b=>b.classList.toggle('active',b.dataset.qf===QF));
   render();
+}
+function resetStudentFilters(){
+  Q='';W='';TF='';QF='all';activeType=null;
+  if($('searchBox'))$('searchBox').value='';
+  if($('weekFilter'))$('weekFilter').value='';
+  if($('typeFilter'))$('typeFilter').value='';
+  render();
+}
+function jumpToPath(track,dept,level,semester,subject,type){
+  const normIt=normOneItem({track,dept,level,semester,type});
+  userPath={track:normIt.track,dept:normIt.dept==='مشترك'&&normIt.track==='خاص'?DEPT_SPC[0]:normIt.dept,level:normIt.level,semester:normIt.semester};
+  Q='';W='';TF='';QF='all';
+  if($('searchBox'))$('searchBox').value='';
+  if($('weekFilter'))$('weekFilter').value='';
+  if($('typeFilter'))$('typeFilter').value='';
+  activeSub=subject||null;
+  activeType=type||null;
+  switchMainView('studentFlow');
+  showResults(normIt.semester);
+}
+function showAddJumpBanner(info){
+  const el=$('addJumpBanner');if(!el||!info)return;
+  const it=normOneItem(info);
+  window._lastAddedPath=it;
+  const pathText=[trackLabel(it.track),it.dept&&it.dept!=='مشترك'?it.dept:'مشترك',it.level,it.semester,it.subject,it.type].filter(Boolean).join(' › ');
+  el.innerHTML=`<div class="jump-banner"><div><b>✅ تم الحفظ في المسار:</b><br><small>${esc(pathText)}</small></div><button type="button" class="btn btn-success sm" onclick="jumpToLastAdded()">👁️ افتح مكانه في الموقع الآن</button></div>`;
+}
+function jumpToLastAdded(){
+  const it=window._lastAddedPath;if(!it)return;
+  jumpToPath(it.track,it.dept,it.level,it.semester,it.subject,it.type);
 }
 function trackRecent(id){
   if(!id)return;
@@ -703,7 +766,10 @@ function render(){
   const p=userPath,unified=p.track==='عام'&&p.dept==='مشترك'&&COMMON_LEVELS.indexOf(p.level)>-1,notes=ld('fci_notes',{});
   const all=getDB().filter(i=>i.track===p.track&&i.level===p.level&&i.semester===p.semester&&(i.dept===p.dept||i.dept==='مشترك'||unified)&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now()))));
   const semDone=all.filter(i=>done.includes(i.id)).length,semPct=all.length?Math.round(semDone/all.length*100):0;
-  if($('semProg'))$('semProg').innerHTML=all.length?`<div class="sem-prog-box"><div class="sem-prog-head"><span>🎯 إنجازك في الترم: ${semDone} من ${all.length} ملف</span><span class="sem-prog-pct">${semPct}%</span></div><div class="pbar" style="margin:0"><i style="width:${semPct}%"></i></div></div>`:'';
+  const newWeekCount=all.filter(i=>Date.now()-i.timestamp<7*864e5).length;
+  if($('qfNewBtn'))$('qfNewBtn').textContent=newWeekCount?`🆕 جديد الأسبوع (${newWeekCount})`:'🆕 جديد الأسبوع';
+  const totalSubsCount=new Set(all.map(i=>i.subject)).size;
+  if($('semProg'))$('semProg').innerHTML=all.length?`<div class="sem-prog-box"><div class="sem-prog-head"><span>🎯 إنجازك في الترم: ${semDone} من ${all.length} ملف (${totalSubsCount} مادة)</span><span class="sem-prog-pct">${semPct}%</span></div><div class="pbar" style="margin:0"><i style="width:${semPct}%"></i></div></div>`:'';
   renderRecentStrip(all);
   const soon=all.filter(i=>{if(i.type!=='تكليفات'||!i.deadline||done.includes(i.id))return false;const e=new Date(i.deadline+'T23:59:59'),n=new Date();return e>=n&&e-n<7*864e5});
   $('upcoming').innerHTML=evBanner()+(soon.length?`<div class="upcoming"><strong>⏰ تكليفات قريبة:</strong>${soon.map(i=>`<div>• ${esc(i.subject)} - ${esc(i.title)} ${dlBadge(i.deadline)}</div>`).join('')}</div>`:'');
@@ -717,7 +783,17 @@ function render(){
   if(W)db=db.filter(i=>i.week===W);
   if(TF)db=db.filter(i=>i.type===TF);
   const box=$('cards');
-  if(!db.length){box.classList.remove('single-tab');box.innerHTML=isLoadingDB?'<div class="skel-grid" style="grid-column:1/-1"><div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div></div>':'<div class="cat-empty-hint" style="grid-column:1/-1">لا توجد ملفات مرفوعة حالياً في هذا المسار.</div>';return}
+  if(!db.length){
+    box.classList.remove('single-tab');
+    if(isLoadingDB){box.innerHTML='<div class="skel-grid" style="grid-column:1/-1"><div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div><div class="skel-card"></div></div>';return}
+    if(all.length){
+      box.innerHTML=`<div class="cat-empty-hint" style="grid-column:1/-1">يوجد <b>${all.length}</b> ملف في هذا المسار، لكن الفلاتر أو البحث الحالي تخفيها.<div style="margin-top:10px"><button type="button" class="btn sm" onclick="resetStudentFilters()">↺ إلغاء الفلاتر وإظهار كل الملفات</button></div></div>`;
+      return;
+    }
+    const otherPathsHint=isAdmin&&getDB().length?`<div style="margin-top:10px"><button type="button" class="btn btn-warning sm" onclick="switchMainView('adminDashboard');adminTab('files')">🗂 عرض كل ملفات المنصة (${getDB().length})</button></div>`:'';
+    box.innerHTML=`<div class="cat-empty-hint" style="grid-column:1/-1">لا توجد ملفات مرفوعة حالياً في هذا المسار.${otherPathsHint}</div>`;
+    return;
+  }
   const g={};
   db.forEach(i=>{(g[i.subject]=g[i.subject]||{});(g[i.subject][i.type]=g[i.subject][i.type]||[]).push(i)});
   const subs=Object.keys(g).sort((a,b)=>(favs.includes(b)-favs.includes(a))||a.localeCompare(b,'ar'));
@@ -726,12 +802,13 @@ function render(){
   const shownSubs=focused?[focused]:subs;
   box.innerHTML=shownSubs.map(sub=>{
     const isOpen=focused===sub,items=all.filter(i=>i.subject===sub),doc=all.filter(i=>i.subject===sub&&i.doctor).sort((x,y)=>y.timestamp-x.timestamp).map(i=>i.doctor)[0],dn=items.filter(i=>done.includes(i.id)).length,pct=items.length?Math.round(dn/items.length*100):0;
+    const availTypes=TYPES.filter(t=>(g[sub][t]||[]).length>0);
     if(!isOpen){
-      return `<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span>▼</span></button><div class="sub-mini-pbar"><i style="width:${pct}%"></i></div></div>`;
+      const chips=availTypes.map(t=>`<span class="sub-chip">${TYPE_ICONS[t]||'📁'} ${esc(t)} (${g[sub][t].length})</span>`).join('');
+      return `<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span>▼</span></button><div class="sub-mini-pbar"><i style="width:${pct}%"></i></div>${chips?`<div class="sub-card-chips">${chips}</div>`:''}</div>`;
     }
     let h=`<div class="material-card"><button class="subject-btn" data-act="tog" data-s="${esc(sub)}"><div class="sl"><span class="fav-btn ${favs.includes(sub)?'active':''}" data-act="fav" data-s="${esc(sub)}" role="button" aria-label="تثبيت">⭐</span><span class="fav-btn" data-act="sharesub" data-s="${esc(sub)}" role="button" aria-label="مشاركة المادة" style="font-size:18px">🔗</span><span>📚 ${esc(sub)}${doc?` <small style="font-weight:normal;opacity:.85;margin-right:6px">👨‍🏫 ${esc(doc)}</small>`:''}</span></div><span><span class="prog">${dn}/${items.length}</span><span class="sub-close-pill" data-act="closeSub" role="button" aria-label="إغلاق المادة">✕ إغلاق</span></span></button><div class="subject-content"><div class="pbar"><i style="width:${pct}%"></i></div>`;
-    const availTypes=TYPES.filter(t=>(g[sub][t]||[]).length>0);
-    const focusedType=(activeType&&TYPES.includes(activeType))?activeType:((TF&&TYPES.includes(TF))?TF:((Q&&availTypes.length===1)?availTypes[0]:null));
+    const focusedType=(activeType&&TYPES.includes(activeType))?activeType:((TF&&TYPES.includes(TF))?TF:(availTypes.length===1?availTypes[0]:null));
     h+=`<div class="cat-tabs" role="tablist">`+TYPES.map(t=>{
       const cnt=(g[sub][t]||[]).length,on=focusedType===t;
       return `<button type="button" role="tab" aria-selected="${on}" class="cat-tab${on?' active':''}${!cnt?' empty':''}" data-act="togType" data-s="${esc(t)}"><span>${TYPE_ICONS[t]||'📁'}</span><span>${esc(t)}</span><span class="cat-count">${cnt}</span></button>`;
@@ -749,22 +826,23 @@ function render(){
     }
     list.forEach(m=>{
       const isNew=Date.now()-m.timestamp<7*864e5,dn2=done.includes(m.id);
-      const cm=(m.comments||[]).map((c,i)=>{c=typeof c==='string'?{n:'طالب',t:c}:c;return `<div class="comment-item"><span>💬 <b>${esc(c.n)}:</b> ${esc(c.t)}</span>${isAdmin?`<button class="delete-btn" style="border:0;border-radius:4px;cursor:pointer" data-act="delc" data-id="${m.id}" data-i="${i}" aria-label="حذف تعليق">🗑️</button>`:''}</div>`}).join('');
+      const mid=safeId(m.id);
+      const cm=(m.comments||[]).map((c,i)=>{c=typeof c==='string'?{n:'طالب',t:c}:c;return `<div class="comment-item"><span>💬 <b>${esc(c.n)}:</b> ${esc(c.t)}</span>${isAdmin?`<button class="delete-btn" style="border:0;border-radius:4px;cursor:pointer" data-act="delc" data-id="${mid}" data-i="${i}" aria-label="حذف تعليق">🗑️</button>`:''}</div>`}).join('');
       h+=`<div class="material-item${dn2?' done':''}"><div class="item-header"><span class="item-title">${getIcon(m.viewLink)} ${esc(m.title)} ${isNew?'<span class="new-badge">جديد</span>':''} ${m.type==='تكليفات'?dlBadge(m.deadline):''}</span>
 <div class="action-links">
-<button class="done-btn ${dn2?'on':''}" data-act="done" data-id="${m.id}" aria-label="تم">✔</button>
-<button class="report-btn" data-act="rep" data-id="${m.id}" aria-label="إبلاغ">⚠</button>
-<button class="open-btn" data-act="read" data-id="${m.id}" aria-label="قراءة">📖</button>
-<button class="note-btn save-btn ${savedIds.indexOf(m.id)>-1?'on':''}" data-act="save" data-id="${m.id}" aria-label="حفظ">🔖</button>
-<button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${m.id}" aria-label="ملاحظة">📝</button>
-<button class="share-btn" data-act="share" data-id="${m.id}" aria-label="مشاركة">🔗</button>
-<a href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer" class="open-btn" data-act="view" data-id="${m.id}">عرض</a>
-<a href="${esc(getDL(m.viewLink))}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${m.id}">تحميل</a>
-${isAdmin?`<button class="edit-btn" data-act="copy" data-id="${m.id}" aria-label="نسخ">📋</button><button class="edit-btn" data-act="edit" data-id="${m.id}" aria-label="تعديل">✏️</button><button class="delete-btn" data-act="del" data-id="${m.id}" aria-label="حذف">🗑️</button>`:''}
+<button class="done-btn ${dn2?'on':''}" data-act="done" data-id="${mid}" aria-label="تم">✔</button>
+<button class="report-btn" data-act="rep" data-id="${mid}" aria-label="إبلاغ">⚠</button>
+<button class="open-btn" data-act="read" data-id="${mid}" aria-label="قراءة">📖</button>
+<button class="note-btn save-btn ${savedIds.indexOf(m.id)>-1?'on':''}" data-act="save" data-id="${mid}" aria-label="حفظ">🔖</button>
+<button class="note-btn ${notes[m.id]?'on':''}" data-act="note" data-id="${mid}" aria-label="ملاحظة">📝</button>
+<button class="share-btn" data-act="share" data-id="${mid}" aria-label="مشاركة">🔗</button>
+<a href="${safeHref(m.viewLink)}" target="_blank" rel="noopener noreferrer" class="open-btn" data-act="view" data-id="${mid}">عرض</a>
+<a href="${safeHref(getDL(m.viewLink))}" target="_blank" rel="noopener noreferrer" class="download-btn" data-act="dl" data-id="${mid}">تحميل</a>
+${isAdmin?`<button class="edit-btn" data-act="copy" data-id="${mid}" aria-label="نسخ">📋</button><button class="edit-btn" data-act="edit" data-id="${mid}" aria-label="تعديل">✏️</button><button class="delete-btn" data-act="del" data-id="${mid}" aria-label="حذف">🗑️</button>`:''}
 </div></div>
 <div class="item-meta"><span>📅 ${esc(m.week||'عام')}</span><span>🗓 ${esc(m.dateAdded||'')}</span>${m.contributor?`<span>🤝 مساهمة: ${esc(m.contributor)}</span>`:''}${m.by?`<span>✍ ${esc(m.by)}</span>`:''}<span>👁 ${m.views||0}</span><span>⬇ ${m.downloads||0}</span>${m.dept==='مشترك'?'<span>🌐 مشترك</span>':''}${String(m.tags||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag" data-act="tag" data-s="${esc(t)}">#${esc(t)}</span>`).join('')}</div>
 ${notes[m.id]?`<div class="comment-item" style="border-right:3px solid #16a085"><span>📝 <b>ملاحظتك:</b> ${esc(notes[m.id])}</span></div>`:''}
-<div class="comments-section"><div>${cm}</div><div class="comment-input-box"><input type="text" id="cn-${m.id}" class="comment-input" style="max-width:100px;flex:none" placeholder="اسمك" maxlength="20"><input type="text" id="cm-${m.id}" class="comment-input" placeholder="اكتب تعليقك..." maxlength="300"><button class="btn" style="padding:5px 10px;font-size:12px" data-act="cmt" data-id="${m.id}">إرسال</button></div></div></div>`;
+<div class="comments-section"><div>${cm}</div><div class="comment-input-box"><input type="text" id="cn-${mid}" class="comment-input" style="max-width:100px;flex:none" placeholder="اسمك" maxlength="20"><input type="text" id="cm-${mid}" class="comment-input" placeholder="اكتب تعليقك..." maxlength="300"><button class="btn" style="padding:5px 10px;font-size:12px" data-act="cmt" data-id="${mid}">إرسال</button></div></div></div>`;
     });
     return h+'</div></div>';
   }).join('');
@@ -825,7 +903,7 @@ async function refresh(manual){
   if(rBtn)rBtn.classList.add('spinning');
   try{
     if(!hasApi())throw new Error('لسه مفيش رابط API');
-    const j=(isAdmin&&TOK)?await api('adminsync'):await (await fetch(API)).json();
+    const j=(isAdmin&&TOK)?await api('adminsync'):await (await fetch(API+(API.includes('?')?'&':'?')+'_t='+Date.now(),{cache:'no-store'})).json();
     lastRefreshAt=Date.now();isLoadingDB=false;apply(j);if(manual===true)toast('تم التحديث ✅');
   }catch(e){
     isLoadingDB=false;
@@ -850,20 +928,34 @@ let _loggingIn=false;
 async function checkLogin(){
   if(_loggingIn)return;
   const nm=$('adminUsername').value.trim(),p=$('adminPassword').value;
+  const otp=$('adminOtp')?$('adminOtp').value.trim():'';
   if(!nm||!p)return toast('اكتب اسم المشرف وكلمة المرور',1);
   const btn=$('adminLoginBtn');
   _loggingIn=true;
   if(btn){btn.disabled=true;btn.textContent='⏳ جاري التحقق المشفّر...'}
   try{
-    const j=await api('login',{name:nm,pass:p});
+    const j=await api('login',{name:nm,pass:p,otp});
+    if(j.needOtp){
+      if($('otpBox'))$('otpBox').hidden=false;
+      if($('adminOtp')){$('adminOtp').value='';$('adminOtp').focus()}
+      toast(j.msg||'اكتب كود Google Authenticator (6 أرقام)');
+      return;
+    }
     TOK=j.tok||'';
     applyAdminSessionUI(j);apply(j);
     try{
-      sessionStorage.setItem('fci_adm_tok',JSON.stringify({tok:TOK,name:ME,owner:OWNER,scope:j.scope||''}));
       sessionStorage.removeItem('fci_adm_sess');
+      if(!$('adminRememberTab')||$('adminRememberTab').checked){
+        sessionStorage.setItem('fci_adm_tok',JSON.stringify({tok:TOK,name:ME,owner:OWNER,scope:j.scope||''}));
+      }else{
+        sessionStorage.removeItem('fci_adm_tok');
+      }
       sv('fci_last_adm_user',nm);
     }catch(e){}
-    $('adminPassword').value='';showSection('adminDashboard');toast('أهلاً '+ME+' 🔐');
+    $('adminPassword').value='';
+    if($('adminOtp'))$('adminOtp').value='';
+    if($('otpBox'))$('otpBox').hidden=true;
+    showSection('adminDashboard');toast('أهلاً '+ME+' 🛡️');
   }catch(e){TOK='';toast(e.message||'خطأ',1)}
   finally{_loggingIn=false;if(btn){btn.disabled=false;btn.textContent='دخول لوحة التحكم'}}
 }
@@ -895,21 +987,73 @@ async function openSecurityCenter(){
   if(!OWNER)return;
   try{
     const j=await api('secstatus'),s=j.sec||{};
-    tool(`<h3>🛡️ مركز الأمان والحماية (Fortress v8)</h3>
-      <div class="stat-grid" style="margin-bottom:12px">
-        <div class="stat-card"><small>حسابات مشفّرة</small><div class="stat-num">${s.hashedAdmins||0}/${s.totalAdmins||0}</div><small>SHA-256 + Pepper</small></div>
-        <div class="stat-card"><small>محاولات فاشلة</small><div class="stat-num">${s.globalFails||0}</div><small>${s.locked?'🔒 مقفول مؤقتاً':'✅ الوضع آمن'}</small></div>
+    let score=70;
+    if(!s.plainAdmins)score+=15;
+    if(s.totpEnabled)score+=15;
+    const evs=(s.events||[]).map(ev=>`<div class="sec-log-item"><span>🚫 <b>${esc(ev.u)}</b> — ${esc(ev.r)}</span><small style="color:var(--text-muted)">${esc(ev.t)}</small></div>`).join('');
+    tool(`<h3>🛡️ مركز الأمان والحماية (Ultimate v12)</h3>
+      <div class="sec-score-bar">
+        <div class="sem-prog-head"><span>مستوى التحصين الحالي</span><span class="sem-prog-pct">${score}%</span></div>
+        <div class="pbar" style="margin:0"><i style="width:${score}%"></i></div>
       </div>
-      <div class="acard" style="font-size:12.5px;line-height:1.9">
-        <div>✅ تشفير كلمات المرور: <b>Iterated SHA-256 + Salt + Server Pepper</b></div>
-        <div>✅ جلسات الإدارة: <b>HMAC-SHA256 Token (6 ساعات — بدون حفظ الباسورد)</b></div>
-        <div>✅ منع التخمين: <b>قفل تلقائي 15 دقيقة + تنبيه تليجرام بعد 5 محاولات</b></div>
-        <div>✅ حماية السبام: <b>Rate Limiting على كل العمليات العامة وتليجرام</b></div>
-        <div>✅ حماية الحقن: <b>Strict CSP + Formula Injection Shield + Sync Sanitizer</b></div>
+      <div class="stat-grid" style="margin-bottom:12px">
+        <div class="stat-card"><small>حسابات مشفّرة</small><div class="stat-num">${s.hashedAdmins||0}/${s.totalAdmins||0}</div><small>SHA-256 (600x)</small></div>
+        <div class="stat-card"><small>المصادقة الثنائية</small><div class="stat-num">${s.totpEnabled?'مفعّلة':'مقفولة'}</div><small>Google Auth 2FA</small></div>
+        <div class="stat-card"><small>محاولات فاشلة</small><div class="stat-num">${s.globalFails||0}</div><small>تأخير تصاعدي آمن</small></div>
+      </div>
+      <div class="acard" style="font-size:12.5px;line-height:1.85">
+        <div>✅ كلمات المرور: <b>600-Round SHA-256 + Salt + Server Pepper</b> (الحد الأدنى 12 حرفاً)</div>
+        <div>✅ الجلسات: <b>HMAC-SHA256 Token (6 ساعات) + إلغاء دائم في PropertiesService + إبطال فوري لكل أدمن</b></div>
+        <div>✅ منع التخمين بدون قفل دائم: <b>تأخير تصاعدي (1–8 ثوانٍ) تحت LockService + تنبيه تليجرام</b></div>
+        <div>✅ عزل الصلاحيات وحماية السيرفر: <b>عزل بيانات الأدمن الفرعي + قصر درايف على المالك + منع SSRF</b></div>
+        <div>⚠️ حدود Apps Script: <b>Rate Limiting عام للعملية لعدم توفر IP موثوق، وCSP يحتوي unsafe-inline</b></div>
+        <div>${s.lockdown?'🔒 <b>وضع الطوارئ (القراءة فقط) مفعّل حالياً</b>':'🟢 الموقع في الوضع الطبيعي (القراءة والكتابة مفتوحة)'}</div>
       </div>
       ${s.plainAdmins>0?`<button type="button" class="btn btn-warning" style="width:100%;margin-bottom:8px" onclick="hashAllPasswords()">🔐 تشفير الـ ${s.plainAdmins} حساب القديم الآن</button>`:''}
-      <button type="button" class="btn btn-danger" style="width:100%" onclick="revokeAllSessions()">🚫 إنهاء كل الجلسات على جميع الأجهزة</button>`);
+      ${s.totpEnabled
+        ?`<button type="button" class="btn btn-ghost" style="width:100%;margin-bottom:8px" onclick="disableTotp2FA()">🔓 إيقاف المصادقة الثنائية (2FA)</button>`
+        :`<button type="button" class="btn btn-success" style="width:100%;margin-bottom:8px" onclick="startTotpSetup()">📲 تفعيل المصادقة الثنائية (Google Authenticator 2FA)</button>`}
+      <button type="button" class="btn ${s.lockdown?'btn-success':'btn-warning'}" style="width:100%;margin-bottom:8px" onclick="toggleLockdown(${!s.lockdown})">${s.lockdown?'🔓 إيقاف وضع الطوارئ (فتح التعليقات والطلبات)':'🔒 تفعيل وضع الطوارئ (قراءة فقط ضد أي سبام)'}</button>
+      <button type="button" class="btn btn-danger" style="width:100%;margin-bottom:10px" onclick="revokeAllSessions()">🚫 إنهاء كل الجلسات على جميع الأجهزة</button>
+      <details><summary style="cursor:pointer;font-weight:700;font-size:13px">🕵️ سجل المحاولات الفاشلة (${(s.events||[]).length})</summary><div style="margin-top:8px">${evs||'<p style="font-size:12px;color:var(--text-muted)">لا توجد محاولات اختراق أو دخول فاشل مسجلة ✅</p>'}</div></details>`);
   }catch(e){toast(e.message||'خطأ',1)}
+}
+async function startTotpSetup(){
+  try{
+    const j=await api('totpinit');
+    const qr='https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=12&data='+encodeURIComponent(j.otpauth);
+    tool(`<h3>📲 تفعيل Google Authenticator (2FA)</h3>
+      <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">1) افتح تطبيق <b>Google Authenticator</b> أو <b>Authy</b> وامسح الكود ده (أو انسخ المفتاح السري):</p>
+      <div class="qr-card">
+        <div class="qr-frame"><img src="${esc(qr)}" alt="2FA QR"><small>FCI-Materials Owner 2FA</small></div>
+        <code dir="ltr" style="font-size:13px;letter-spacing:2px;font-weight:800;word-break:break-all">${esc(j.secret)}</code>
+      </div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin:10px 0 6px">2) اكتب الكود المكون من 6 أرقام اللي ظهر في التطبيق لتأكيد التفعيل:</p>
+      <input id="totpVerifyCode" type="text" inputmode="numeric" maxlength="6" class="form-input otp-input" placeholder="000000" autocomplete="off">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button type="button" class="btn btn-success" style="flex:1" onclick="confirmTotpEnable()">✅ تأكيد وتفعيل 2FA</button>
+        <button type="button" class="btn btn-ghost" onclick="openSecurityCenter()">رجوع</button>
+      </div>`);
+  }catch(e){toast(e.message||'خطأ',1)}
+}
+async function confirmTotpEnable(){
+  const otp=$('totpVerifyCode').value.trim();
+  if(!/^\d{6}$/.test(otp))return toast('اكتب الكود المكون من 6 أرقام',1);
+  try{const j=await api('totpenable',{otp});toast(j.msg||'تم التفعيل 🛡️');openSecurityCenter()}catch(e){toast(e.message||'خطأ',1)}
+}
+async function disableTotp2FA(){
+  const otp=await askPrompt('🔓 اكتب كود Google Authenticator الحالي (6 أرقام) لإيقاف 2FA','','000000');
+  if(!otp)return;
+  try{const j=await api('totpdisable',{otp:otp.trim()});toast(j.msg||'تم الإيقاف');openSecurityCenter()}catch(e){toast(e.message||'خطأ',1)}
+}
+async function toggleLockdown(on){
+  const msg=on?'تفعيل وضع الطوارئ (القراءة فقط)؟ الطلاب هيقدروا يفتحوا ويحملوا الملفات عادي، بس التعليقات والطلبات والمساهمات هتتوقف مؤقتاً.':'إلغاء وضع الطوارئ وإرجاع الموقع للوضع الطبيعي؟';
+  if(!(await askConfirm(msg)))return;
+  try{const j=await api('lockdown',{on});toast(j.msg||'تم');openSecurityCenter()}catch(e){toast(e.message||'خطأ',1)}
+}
+async function repairAllPaths(){
+  if(!(await askConfirm('هيتم فحص كل ملفات قاعدة البيانات وتصحيح أي ملف مساره (النظام/القسم/الفرقة/الترم) متخالف عشان يظهر في مكانه الصح. نكمل؟')))return;
+  await act('repairpaths',{});
 }
 async function hashAllPasswords(){
   try{const j=await api('hashall');toast(j.msg||'تم التشفير 🔐');openSecurityCenter()}catch(e){toast(e.message||'خطأ',1)}
@@ -920,7 +1064,7 @@ async function revokeAllSessions(){
     const j=await api('revokeall');
     if(j.tok){
       TOK=j.tok;
-      try{sessionStorage.setItem('fci_adm_tok',JSON.stringify({tok:TOK,name:ME,owner:OWNER,scope:''}))}catch(e){}
+      try{if(sessionStorage.getItem('fci_adm_tok'))sessionStorage.setItem('fci_adm_tok',JSON.stringify({tok:TOK,name:ME,owner:OWNER,scope:''}))}catch(e){}
     }
     toast(j.msg||'تم إنهاء كل الجلسات ✅');openSecurityCenter();
   }catch(e){toast(e.message||'خطأ',1)}
@@ -933,10 +1077,19 @@ async function saveMaterial(){
   const dp=dupOf(link,item.title,item.subject);
   if(dp&&!(await askConfirm('فيه ملف مشابه بالفعل: «'+dp.title+'» ('+dp.subject+'). تضيفه برضه؟')))return;
   saveLastAddPath();
-  if(await act('add',{item},'تم النشر!'))['addTitle','addLink','addDeadline','addTags','addPub'].forEach(i=>$(i).value='');
+  const res=await act('add',{item},'تم النشر بنجاح ✅');
+  if(res){
+    showAddJumpBanner(item);
+    ['addTitle','addLink','addDeadline','addTags','addPub'].forEach(i=>$(i).value='');
+  }
 }
 async function deleteMat(id){if(await askConfirm('حذف هذا الملف؟'))act('del',{id},'مُسح')}
-async function clearAllData(){if(await askConfirm('تصفير كلي؟ (اعمل نسخة احتياطية الأول)'))act('clear',{},'تم')}
+async function clearAllData(){
+  if(!(await askConfirm('⚠️ تحذير: هيتم عمل نسخة احتياطية تلقائية على درايف ثم مسح كل الملفات نهائياً. متأكد؟')))return;
+  const pw=await askPrompt('🔐 اكتب كلمة مرور المالك لتأكيد تصفير السيستم','','كلمة المرور...');
+  if(!pw)return;
+  act('clear',{confirmPass:pw},'تم التصفير (واتحفظت نسخة احتياطية على درايف)');
+}
 async function submitEdit(){
   const id=$('editId').value,t=$('editTitle').value.trim(),sb=$('editSubject').value.trim(),l=safeUrl($('editLink').value.trim());
   if(!t||!sb||!l)return toast('تأكد من الحقول والرابط',1);
@@ -968,7 +1121,8 @@ $('cards').addEventListener('click',e=>{
   if(a==='rep')return reportLink(id);
   if(a==='share'){
     const m=getDB().find(x=>x.id===id);if(!m)return;
-    if(navigator.share)navigator.share({title:m.title,text:m.subject+' - '+m.title,url:m.viewLink}).catch(()=>{});else copyText(m.viewLink);return;
+    const su=safeUrl(m.viewLink);if(!su)return;
+    if(navigator.share)navigator.share({title:m.title,text:m.subject+' - '+m.title,url:su}).catch(()=>{});else copyText(su);return;
   }
   if(a==='cmt'){
     const t=$('cm-'+id).value.trim(),n=$('cn-'+id).value.trim()||'طالب';if(!t)return;
@@ -992,7 +1146,7 @@ function gsRun(){
   const q=norm($('gsQ').value.trim());
   if(q.length<2){$('gsRes').innerHTML='<p style="color:#888;font-size:13px">اكتب حرفين على الأقل.</p>';return}
   const a=pubItems().filter(i=>norm(i.title+' '+i.subject+' '+(i.tags||'')+' '+(i.doctor||'')).includes(q)).slice(0,30);
-  $('gsRes').innerHTML=a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)}${m.dept&&m.dept!=='مشترك'?' • '+esc(m.dept):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${safeId(m.id)}')">📂 مكانه</button></div></div>`).join(''):'<p>مفيش نتايج.</p>';
+  $('gsRes').innerHTML=a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)}${m.dept&&m.dept!=='مشترك'?' • '+esc(m.dept):''}</small></div><div class="action-links"><a class="open-btn" href="${safeHref(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${safeId(m.id)}')">📂 مكانه</button></div></div>`).join(''):'<p>مفيش نتايج.</p>';
 }
 function goToItem(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
@@ -1005,7 +1159,7 @@ function toggleSaved(id){
 }
 function openSaved(){
   const db=getDB(),a=ld('fci_saved',[]).map(id=>db.find(x=>x.id===id)).filter(Boolean);
-  tool(`<h3>🔖 المحفوظات</h3>${a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${safeId(m.id)}')">📂</button><button class="btn btn-danger sm" onclick="toggleSaved('${safeId(m.id)}');openSaved()">✕</button></div></div>`).join(''):'<p>لسه ما حفظتش حاجة. اضغط 🔖 جنب أي ملف.</p>'}`);
+  tool(`<h3>🔖 المحفوظات</h3>${a.length?a.map(m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ${esc(m.type)}</small></div><div class="action-links"><a class="open-btn" href="${safeHref(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm" onclick="goToItem('${safeId(m.id)}')">📂</button><button class="btn btn-danger sm" onclick="toggleSaved('${safeId(m.id)}');openSaved()">✕</button></div></div>`).join(''):'<p>لسه ما حفظتش حاجة. اضغط 🔖 جنب أي ملف.</p>'}`);
 }
 function icsEsc(t){return String(t).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n')}
 function exportIcs(){
@@ -1129,7 +1283,7 @@ let ADMS=[];
 async function openAdmins(){
   try{
     const j=await api('adminlist');ADMS=j.admins;
-    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (8 حروف على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
+    tool(`<h3>👥 الأدمنز</h3>${ADMS.map((a,n)=>`<div class="ev"><div><b>${esc(a.name)}</b> ${a.role==='owner'?'<span class="countdown-badge">مالك</span>':''}<br><small>${a.scope?'نطاق: '+esc(a.scope.replace('|',' / ')):'من غير نطاق'}</small></div><div class="action-links"><button class="btn sm" onclick="adminEdit(${n})" aria-label="تعديل">✏️</button><button class="btn btn-danger sm" onclick="adminDel(${n})" aria-label="حذف">🗑️</button></div></div>`).join('')}<hr><h4 id="admFormT">➕ أدمن جديد</h4><input id="admN" class="form-input" placeholder="الاسم"><input id="admP" type="text" class="form-input" style="margin-top:6px" placeholder="الباسورد (12 حرفًا على الأقل)" autocomplete="off"><select id="admR" class="form-select" style="margin-top:6px"><option value="">أدمن</option><option value="owner">مالك</option></select><input id="admS" class="form-input" style="margin-top:6px" placeholder="النطاق (اختياري): الفرقة الثالثة أو الفرقة الثالثة|علوم الحاسب"><button class="btn" style="width:100%;margin-top:8px" onclick="adminSave()">حفظ</button>`);
   }catch(e){toast(e.message||'خطأ',1)}
 }
 function adminEdit(n){const a=ADMS[n];$('admN').value=a.name;$('admP').value='';$('admP').placeholder='سيب الباسورد فاضي لو مش هتغيّره';$('admR').value=a.role;$('admS').value=a.scope;$('admFormT').textContent='✏️ تعديل: '+a.name}
@@ -1154,7 +1308,7 @@ let CTR=[];
 async function openContribs(){
   try{
     const j=await api('contriblist');CTR=j.contrib;
-    tool(`<h3>📬 المساهمات (${CTR.length})</h3>${CTR.length?CTR.map((c,n)=>`<div class="acard"><b>${esc(c.title)}</b><br><small>${esc(c.subject)} • ${esc(c.type)} • ${esc(c.week)} • ${esc(c.level)} • ${esc(c.dept)} • ${esc(c.semester)}<br>🤝 ${esc(c.contributor)} • ${esc(c.at)}</small><div class="action-links" style="margin-top:8px"><a class="open-btn" href="${esc(c.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm btn-success" data-ca="${n}">✅ نشر</button><button class="btn sm btn-warning" onclick="openContribEdit(${n})">✏️ تعديل ونشر</button><button class="btn btn-danger sm" data-cr="${esc(c.id)}">❌ رفض</button></div></div>`).join(''):'<p>مفيش مساهمات مستنية ✅</p>'}`);
+    tool(`<h3>📬 المساهمات (${CTR.length})</h3>${CTR.length?CTR.map((c,n)=>`<div class="acard"><b>${esc(c.title)}</b><br><small>${esc(c.subject)} • ${esc(c.type)} • ${esc(c.week)} • ${esc(c.level)} • ${esc(c.dept)} • ${esc(c.semester)}<br>🤝 ${esc(c.contributor)} • ${esc(c.at)}</small><div class="action-links" style="margin-top:8px"><a class="open-btn" href="${safeHref(c.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a><button class="btn sm btn-success" data-ca="${n}">✅ نشر</button><button class="btn sm btn-warning" onclick="openContribEdit(${n})">✏️ تعديل ونشر</button><button class="btn btn-danger sm" data-cr="${esc(c.id)}">❌ رفض</button></div></div>`).join(''):'<p>مفيش مساهمات مستنية ✅</p>'}`);
   }catch(e){toast(e.message||'خطأ',1)}
 }
 function openContribEdit(n){
@@ -1228,7 +1382,7 @@ function openPlanner(){
   });
   const mins=total*c.mpf,cap=c.hrs*60;
   const status=!rows.length?'':mins>cap?'⚠️ الحمل النهاردة حوالي '+(mins/60).toFixed(1)+' ساعة وده أكتر من '+c.hrs+' ساعات. زوّد وقتك أو ابدأ بالأقرب امتحاناً.':'✅ حملك النهاردة حوالي '+(mins/60).toFixed(1)+' ساعة، جوه وقتك.';
-  tool(`<h3>🗓 خطة مذاكرة ذكية</h3><p style="font-size:12px;margin:0 0 8px">بتتحسب من مواعيد الامتحانات اللي الإدارة ضايفاها وملفات موادك اللي لسه ما علّمتش عليها ✔.</p><div class="row"><label style="font-size:12px">دقايق للملف<input id="plMpf" type="number" class="form-input" value="${c.mpf}" onchange="planSet()"></label><label style="font-size:12px">ساعات المذاكرة يومياً<input id="plHrs" type="number" step="0.5" class="form-input" value="${c.hrs}" onchange="planSet()"></label></div>${status?'<p><b>'+status+'</b></p>':''}${rows.length?rows.map(r=>`<div class="acard"><b>${esc(r.e.subject)}</b> — ${esc(r.e.title)} <span class="countdown-badge">${r.left} يوم للمذاكرة</span><br><small>${r.rem.length} ملف متبقي من ${r.files.length}${r.per?' • النهاردة: '+r.per+' ملف':' • خلّصت ✅'}</small>${r.rem.slice(0,r.per).map(i=>`<div class="ev"><span>${esc(i.title)}</span><a class="open-btn btn sm" href="${esc(i.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a></div>`).join('')}</div>`).join(''):'<p>مفيش امتحانات قادمة عليها اسم مادة. اطلب من الإدارة تضيف المواعيد.</p>'}`);
+  tool(`<h3>🗓 خطة مذاكرة ذكية</h3><p style="font-size:12px;margin:0 0 8px">بتتحسب من مواعيد الامتحانات اللي الإدارة ضايفاها وملفات موادك اللي لسه ما علّمتش عليها ✔.</p><div class="row"><label style="font-size:12px">دقايق للملف<input id="plMpf" type="number" class="form-input" value="${c.mpf}" onchange="planSet()"></label><label style="font-size:12px">ساعات المذاكرة يومياً<input id="plHrs" type="number" step="0.5" class="form-input" value="${c.hrs}" onchange="planSet()"></label></div>${status?'<p><b>'+status+'</b></p>':''}${rows.length?rows.map(r=>`<div class="acard"><b>${esc(r.e.subject)}</b> — ${esc(r.e.title)} <span class="countdown-badge">${r.left} يوم للمذاكرة</span><br><small>${r.rem.length} ملف متبقي من ${r.files.length}${r.per?' • النهاردة: '+r.per+' ملف':' • خلّصت ✅'}</small>${r.rem.slice(0,r.per).map(i=>`<div class="ev"><span>${esc(i.title)}</span><a class="open-btn btn sm" href="${safeHref(i.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a></div>`).join('')}</div>`).join(''):'<p>مفيش امتحانات قادمة عليها اسم مادة. اطلب من الإدارة تضيف المواعيد.</p>'}`);
 }
 /* ===== المنظّم الذكي لدرايف (للمالك) ===== */
 let TR={files:[],truncated:false,rootId:''};
@@ -1273,8 +1427,8 @@ async function treeImport(){
   for(let i=0;i<items.length;i+=CHUNK){
     const part=items.slice(i,i+CHUNK);
     try{
-      const payload=part.map(f=>({id:f.id,name:f.name,viewLink:f.viewLink,downloadLink:f.downloadLink,fromShortcut:!!f.fromShortcut,fields:f.fields}));
-      const j=await api('treebatch',{items:payload,rootId:i===0?TR.rootId:'',fast:true,quiet:true});
+      const payload=part.map(f=>({id:f.id,name:f.name,mime:f.mime||'',fromShortcut:!!f.fromShortcut,fields:f.fields}));
+      const j=await api('treebatch',{items:payload,rootId:i===0?TR.rootId:'',share:true,confirmPublicShare:true,fast:true,quiet:true});
       doneCnt+=(j.imported??part.length);skip+=(j.skipped||0);fail+=(j.failed||0);
       part.forEach(f=>subs.add(f.fields.subject));
       const pct=Math.min(96,Math.round(((i+part.length)/items.length)*95));
@@ -1292,7 +1446,8 @@ async function treeSyncNow(){if(await treeCollect())treeImport()}
 async function treeSaveCfg(){
   const root=$('trRoot').value.trim();
   if(!root)return toast('الصق رابط الفولدر الأول',1);
-  if(await act('treecfg',{root,defaults:trDefaults()})){
+  const autoShare=!$('trAutoShare')||$('trAutoShare').checked;
+  if(await act('treecfg',{root,defaults:trDefaults(),autoShare})){
     $('trRoot').value='';
     loadTreeCfg();
   }
@@ -1347,7 +1502,7 @@ async function loadTreeCfg(){
     $('trInfo').innerHTML=statusBadge+(c.last?`<br>🕒 آخر مزامنة: <b>${esc(c.last)}</b>`:'');
   }catch(e){}
 }
-async function healFix(){if((await askConfirm('هيتم فتح المشاركة (أي حد معاه الرابط) لكل ملفات الدرايف اللي لقاها الفحص مقفولة. نكمل؟'))&&await act('healfix',{}))openHealth()}
+async function healFix(){if((await askConfirm('تحذير: هيتم فتح مشاركة ملفات Google Drive المحددة لأي شخص معاه الرابط. هل تؤكد؟'))&&await act('healfix',{confirmPublicShare:true}))openHealth()}
 function adminsInto(){
   if(!OWNER)return;const b=$('toolBody');if(!b)return;
   const by={},now=Date.now();
@@ -1477,6 +1632,7 @@ function openInstall(){
 
 /* عارض الملفات */
 function readerUrl(l){
+  l=safeUrl(l);if(!l)return '';
   let m=l.match(/drive\.google\.com\/file\/d\/([\w-]+)/)||l.match(/drive\.google\.com\/open\?id=([\w-]+)/);
   if(m)return 'https://drive.google.com/file/d/'+m[1]+'/preview';
   m=l.match(/docs\.google\.com\/(document|presentation|spreadsheets)\/d\/([\w-]+)/);
@@ -1489,8 +1645,8 @@ function syncReaderUI(){
   if(!RD_CUR)return;
   const m=RD_CUR,isDone=done.includes(m.id),notes=ld('fci_notes',{});
   $('rdT').textContent=m.title;
-  $('rdDl').href=getDL(m.viewLink);
-  $('rdExt').href=m.viewLink;
+  $('rdDl').href=getDL(m.viewLink)||'#';
+  $('rdExt').href=safeUrl(m.viewLink)||'#';
   $('rdDone').classList.toggle('on',isDone);
   $('rdNote').classList.toggle('on',!!notes[m.id]);
   const pos=$('rdPos');
@@ -1503,7 +1659,7 @@ function openReader(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
   trackRecent(id);
   const u=readerUrl(m.viewLink);
-  if(!u){window.open(m.viewLink,'_blank','noopener');if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();return}
+  if(!u){window.open(safeUrl(m.viewLink)||'about:blank','_blank','noopener,noreferrer');if(!$('studentFlow').hidden&&!$('resultsStep').hidden)render();return}
   RD_CUR=m;
   RD_LIST=getDB().filter(i=>i.track===m.track&&i.level===m.level&&i.semester===m.semester&&i.subject===m.subject&&i.type===m.type&&(isAdmin||(!i.hidden&&(!i.publishAt||+i.publishAt<=Date.now())))).sort((a,b)=>(WEEKS.indexOf(a.week)-WEEKS.indexOf(b.week))||a.title.localeCompare(b.title,'ar',{numeric:true}));
   RD_IDX=RD_LIST.findIndex(x=>x.id===id);
@@ -1628,7 +1784,7 @@ function applyHash(){
 }
 
 /* أدوات الأدمن */
-const itemRow=m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ⬇${m.downloads||0} 👁${m.views||0}</small></div><a class="btn sm" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">عرض</a></div>`;
+const itemRow=m=>`<div class="ev"><div><b>${esc(m.title)}</b><br><small>${esc(m.subject)} • ⬇${m.downloads||0} 👁${m.views||0}</small></div><a class="btn sm" href="${safeHref(m.viewLink)}" target="_blank" rel="noopener noreferrer">عرض</a></div>`;
 function openDash(){
   const db=getDB(),sum=f=>db.reduce((a,i)=>a+(i[f]||0),0),by={};
   db.forEach(i=>{const o=by[i.subject]=by[i.subject]||{n:0,u:0};o.n++;o.u+=(i.views||0)+(i.downloads||0)});
@@ -1659,7 +1815,7 @@ async function saveBulk(){
   if(dn){if(!(await askConfirm(dn+' من الملفات موجودة قبل كده. نتخطاها ونكمل؟')))return;for(let i=items.length-1;i>=0;i--)if(dupOf(items[i].viewLink,items[i].title,items[i].subject))items.splice(i,1)}
   if(!items.length)return toast('مفيش سطور صحيحة (العنوان | الرابط)',1);
   if(items.length>40)return toast('الحد الأقصى 40 ملف في المرة',1);
-  if(await act('addmany',{items},'تم نشر '+items.length+' ملف'+(bad?' (وتخطيت '+bad+' سطر غلط)':'')))$('addBulk').value='';
+  if(await act('addmany',{items},'تم نشر '+items.length+' ملف'+(bad?' (وتخطيت '+bad+' سطر غلط)':''))){$('addBulk').value='';showAddJumpBanner(base)}
 }
 function openCopy(id){
   const m=getDB().find(x=>x.id===id);if(!m)return;
@@ -1680,7 +1836,7 @@ function adminTab(t){
   if(t==='home'){updateStats();renderReports();loadAttention()}
   if(t==='files')renderAdminFiles();
   if(t==='students')loadStudentsTab();
-  if(t==='settings'&&OWNER)loadTreeCfg();
+  if(t==='settings'&&OWNER){loadTreeCfg();loadTgCfg()}
 }
 function renderAdminFiles(){
   const db=getDB().slice().sort((a,b)=>b.timestamp-a.timestamp),q=norm(AF.q);
@@ -1691,7 +1847,7 @@ function renderAdminFiles(){
   $('afCount').textContent=all.length+' ملف';
   $('afList').innerHTML=l.length?l.map(m=>{
     const can=OWNER||m.by===ME,sch=m.publishAt&&+m.publishAt>Date.now();
-    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${m.id}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${esc(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${safeId(m.id)}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${safeId(m.id)}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${safeId(m.id)}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
+    return `<div class="frow"><label style="display:flex;align-items:center;padding:0 4px"><input type="checkbox" class="afck" data-id="${safeId(m.id)}" ${AF.sel[m.id]?'checked':''}></label><div class="finfo"><b>${esc(m.title)}</b>${m.hidden?' <span class="countdown-badge">🙈 مخفي</span>':''}${sch?' <span class="countdown-badge">⏳ مجدول</span>':''}<br><small>${esc(m.subject)} • ${esc(m.type)} • ${esc(m.level)} • ${esc(m.dept)} • ${esc(m.semester)}</small><br><small>${esc(m.week||'عام')} • 👁${m.views||0} ⬇${m.downloads||0}${m.by?' • ✍ '+esc(m.by):''}</small></div><div class="action-links"><a class="open-btn" href="${safeHref(m.viewLink)}" target="_blank" rel="noopener noreferrer">فتح</a>${can?`<button class="edit-btn" onclick="openCopy('${safeId(m.id)}')" aria-label="نسخ">📋</button><button class="edit-btn" onclick="openEdit('${safeId(m.id)}')" aria-label="تعديل">✏️</button><button class="delete-btn" onclick="deleteMat('${safeId(m.id)}')" aria-label="حذف">🗑️</button>`:''}</div></div>`;
   }).join(''):'<p style="text-align:center">لا توجد ملفات.</p>';
   $('afMore').style.display=all.length>AF.n?'block':'none';
 }
@@ -1718,11 +1874,12 @@ async function saveDriveImport(){
   try{
     while(more&&round<6){
       round++;
-      const j=await api('driveimport',{folder,base,auto:$('driveAuto').checked,share:$('driveShare').checked,fast:true});
+      const wantShare=$('driveShare').checked;
+      const j=await api('driveimport',{folder,base,auto:$('driveAuto').checked,share:wantShare,confirmPublicShare:wantShare,fast:true});
       totalImp+=(j.imported||0);totalSkip+=(j.skipped||0);more=!!j.hasMore;
       showDriveProgress('📥 جاري استيراد فولدر المادة...',`اتستورد ${totalImp} ملف حتى الآن...`,more?Math.min(92,25+round*15):100);
     }
-    if(totalImp)await refresh('force');
+    if(totalImp){await refresh('force');showAddJumpBanner(base)}
     if(!more)$('driveFolder').value='';
     closeModal('toolModal');
     toast('تم استيراد '+totalImp+' ملف'+(totalSkip?' • اتخطّى '+totalSkip+' موجود':'')+(more?' • فيه ملفات زيادة اضغط تاني':'')+' ✅');
@@ -1739,7 +1896,16 @@ async function healthRun(){toast('بيفحص...');try{const j=await api('healthr
 async function openTrash(){
   try{const j=await api('trashlist');tool(`<h3>♻️ سلة المحذوفات (30 يوم)</h3>${j.trash.length?j.trash.map(t=>`<div class="ev"><div><b>${esc(t.title)}</b><br><small>${esc(t.subject)} • حذفه ${esc(t.by)} • ${esc(t.at)}</small></div><button class="btn sm" data-rs="${esc(t.id)}">استرجاع</button></div>`).join(''):'<p>السلة فاضية.</p>'}`)}catch(e){toast(e.message||'خطأ',1)}
 }
-function tgSave(){act('tgset',{token:$('tgToken').value.trim(),chat:$('tgChat').value.trim(),site:$('tgSite').value.trim()},'تم الحفظ').then(ok=>{if(ok)$('tgToken').value=''})}
+async function loadTgCfg(){
+  try{
+    const t=(await api('tgget')).tg||{};
+    if(t.chat&&!$('tgChat').value)$('tgChat').value=t.chat;
+    if(t.pubChat&&!$('tgPubChat').value)$('tgPubChat').value=t.pubChat;
+    if(t.site)$('tgSite').value=t.site;
+    if(t.hasToken)$('tgToken').placeholder='✅ التوكن محفوظ (سيبه فاضي لو مش هتغيره)';
+  }catch(e){}
+}
+function tgSave(){act('tgset',{token:$('tgToken').value.trim(),chat:$('tgChat').value.trim(),pubChat:$('tgPubChat').value.trim(),site:$('tgSite').value.trim()},'تم الحفظ ✅').then(ok=>{if(ok){$('tgToken').value='';loadTgCfg()}})}
 function tgTest(){act('tgtest',{},'وصلت رسالة التجربة ✅')}
 async function installAuto(){
   const iv=$('syncIntervalSel')?$('syncIntervalSel').value:'30';

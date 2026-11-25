@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;700&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
   <div id="bg" aria-hidden="true"><div class="bg-dots"></div></div>
@@ -239,7 +239,7 @@
         </div>
         <div id="quickFilterBar" class="qfilter-bar" role="group" aria-label="فلاتر سريعة">
           <button type="button" class="qf-pill active" data-qf="all" onclick="setQuickFilter('all')">✨ الكل</button>
-          <button type="button" class="qf-pill" data-qf="new" onclick="setQuickFilter('new')">🆕 جديد الأسبوع</button>
+          <button type="button" id="qfNewBtn" class="qf-pill" data-qf="new" onclick="setQuickFilter('new')">🆕 جديد الأسبوع</button>
           <button type="button" class="qf-pill" data-qf="todo" onclick="setQuickFilter('todo')">⏳ لم يكتمل بعد</button>
           <button type="button" class="qf-pill" data-qf="saved" onclick="setQuickFilter('saved')">🔖 المحفوظات</button>
           <button type="button" class="qf-pill" data-qf="noted" onclick="setQuickFilter('noted')">📝 عليه ملاحظة</button>
@@ -463,10 +463,15 @@
     <!-- ==================== 5. ADMIN LOGIN & DASHBOARD ==================== -->
     <section id="adminLogin" class="drawer-label" hidden>
       <h2>دخول الإدارة 🔐</h2>
-      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">محمي بتشفير SHA-256 وتوكن HMAC-SHA256 وقفل تلقائي ضد التخمين</p>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">محمي بتجزئة SHA-256 وتوكن HMAC-SHA256 ومصادقة ثنائية 2FA وتأخير تصاعدي ضد التخمين</p>
       <div class="form-group" style="max-width:340px;margin:0 auto">
         <input type="text" id="adminUsername" class="form-input" placeholder="اسم المشرف (مثال: المالك)" autocomplete="username" style="text-align:center;margin-bottom:10px">
         <input type="password" id="adminPassword" class="form-input" placeholder="كلمة المرور..." autocomplete="current-password" style="text-align:center">
+        <div id="otpBox" class="otp-box" hidden>
+          <label for="adminOtp" style="text-align:center;font-size:12.5px;margin-bottom:6px">🔐 كود المصادقة الثنائية (Google Authenticator)</label>
+          <input type="text" id="adminOtp" inputmode="numeric" maxlength="6" class="form-input otp-input" placeholder="000000" autocomplete="one-time-code">
+        </div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="adminRememberTab" checked> حفظ الجلسة في هذا التاب حتى إغلاقه (أزل التحديد على جهاز مشترك)</label>
         <button type="button" id="adminLoginBtn" class="btn" onclick="checkLogin()" style="width:100%;margin-top:14px">دخول لوحة التحكم</button>
       </div>
     </section>
@@ -516,6 +521,7 @@
       </div>
 
       <div id="ap-add" class="apanel" hidden>
+        <div id="addJumpBanner"></div>
         <div class="acard">
           <h4>1) المسار</h4>
           <p id="pathHint" style="font-size:12px;color:var(--text-muted);margin:0 0 10px"></p>
@@ -549,8 +555,8 @@
           <textarea id="addBulk" class="form-input" style="min-height:110px" placeholder="محاضرة 1 | https://drive.google.com/..."></textarea>
           <button type="button" class="btn" style="width:100%;margin-top:8px" onclick="saveBulk()">نشر الكل</button>
         </div>
-        <div class="acard">
-          <h4>📂 استيراد من فولدر درايف</h4>
+        <div class="acard owner-only">
+          <h4>📂 استيراد من فولدر درايف (للمالك فقط)</h4>
           <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">ارفع ملفات المادة في فولدر على <b>حسابك</b> وحط رابطه هنا. النظام يدخل جوه الفولدرات الفرعية ويحدد النوع والأسبوع ويفتح المشاركة (حتى 40 ملف في المرة).</p>
           <input type="url" id="driveFolder" class="form-input" placeholder="https://drive.google.com/drive/folders/...">
           <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="driveAuto" checked> حدّد النوع والأسبوع من اسم الفولدر والملف</label>
@@ -563,6 +569,7 @@
         <div class="row" style="margin-bottom:8px">
           <button type="button" class="btn sm" onclick="openSubjects()">📚 إدارة المواد</button>
           <button type="button" class="btn btn-warning sm" onclick="openSmartFixer()">🪄 فحص وتصحيح التصنيف</button>
+          <button type="button" class="btn btn-success sm owner-only" onclick="repairAllPaths()">🔧 إصلاح المسارات المخفية</button>
           <button type="button" class="btn btn-ghost sm" onclick="openDuplicates()">♻️ كشف المكررات</button>
         </div>
         <div class="filters" style="margin-top:0">
@@ -620,6 +627,7 @@
           <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">اربط فولدر واحد أو أكتر (لحد 15 فولدر) — أي ملف جديد يترفع على درايف هينزل على الموقع تلقائياً في مادته وقسمه الصح، وتتفتح مشاركته، ويتبعت إشعار على تليجرام.</p>
           <input type="url" id="trRoot" class="form-input" placeholder="https://drive.google.com/drive/folders/...">
           <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="trRootSub"> اعتبر اسم الفولدر ده هو اسم المادة (لو الفولدر لمادة واحدة)</label>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:4px;font-size:13px"><input type="checkbox" id="trAutoShare" checked> فتح مشاركة الملفات الجديدة تلقائياً للطلاب (للفولدر المربوط فقط)</label>
           <details style="margin-top:10px">
             <summary style="cursor:pointer;font-weight:bold;font-size:13px">افتراضيات للفولدر ده (اختياري — لو مش متقسّم فرقة/ترم)</summary>
             <div class="form-grid" style="margin-top:8px">
@@ -669,7 +677,8 @@
           <h4>✈️ ربط تليجرام</h4>
           <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 8px">كلّم <b>@BotFather</b> وأنشئ بوت بـ /newbot وخد الـ Token، وضيف البوت أدمن في الجروب أو القناة.</p>
           <input id="tgToken" type="password" class="form-input" placeholder="Bot Token (سيبه فاضي لو مش هتغيره)" autocomplete="off">
-          <input id="tgChat" class="form-input" style="margin-top:8px" placeholder="Chat ID أو @channel">
+          <input id="tgChat" class="form-input" style="margin-top:8px" placeholder="Chat ID الخاص بالإدارة (للبلاغات والشكاوى وتحذيرات الأمان)">
+          <input id="tgPubChat" class="form-input" style="margin-top:8px" placeholder="قناة/جروب الدفعة العام (اختياري — للملفات الجديدة والملخص فقط)">
           <input id="tgSite" class="form-input" style="margin-top:8px" placeholder="رابط الموقع (للروابط المباشرة في الرسائل)">
           <div class="row" style="margin-top:8px">
             <button type="button" class="btn" onclick="tgSave()">حفظ</button>
@@ -702,6 +711,6 @@
 
   <button type="button" id="scrollTopBtn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى" aria-label="الأعلى">↑</button>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
